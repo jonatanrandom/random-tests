@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+    html,body{height:100%;margin:0;background:#fff;overflow:hidden;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+    #ball{
+        position:absolute;
+        left:50%;
+        top:50%;
+        width:88px;
+        height:88px;
+        margin:0;
+        border-radius:50%;
+        background:#000;
+        transform:translate(-50%,-50%);
+        will-change:transform;
+        touch-action:manipulation;
+    }
+    /* subtle invite to tap (no text) */
+    @keyframes pulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.06)}100%{transform:translate(-50%,-50%) scale(1)}}
+    #ball.idle{animation:pulse 1400ms ease-in-out infinite}
+</style>
+</head>
+<body>
+<div id="ball" class="idle"></div>
+
+<script>
+(function(){
+    const ball = document.getElementById('ball');
+    let w=innerWidth, h=innerHeight;
+    let maxX, maxY;
+    let targetX=0, targetY=0;
+    let x=0,y=0;
+    let rot=0;
+    const ease=0.12;
+
+    function resize(){
+        w = innerWidth; h = innerHeight;
+        const r = Math.max(ball.offsetWidth, ball.offsetHeight)/2;
+        maxX = (w/2) - r;
+        maxY = (h/2) - r;
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    // Map device tilt to offsets. sensitivity controls range.
+    const sensitivity = 1.0; // tweak if too strong
+    function handleOrientation(e){
+        // gamma: left/right  (-90..90), beta: front/back (-180..180)
+        let g = e.gamma || 0;
+        let b = e.beta  || 0;
+
+        // clamp expected tilt to ~[-30,30] for nicer control
+        const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+        g = clamp(g, -30, 30);
+        b = clamp(b, -30, 30);
+
+        // map to pixel offsets
+        targetX = (g / 30) * (maxX * sensitivity);
+        targetY = (b / 30) * (maxY * sensitivity);
+    }
+
+    // Desktop fallback: move with mouse
+    function handleMouse(e){
+        // map mouse position to offsets relative to center
+        const cx = w/2, cy = h/2;
+        targetX = clampVal((e.clientX - cx) / cx) * maxX;
+        targetY = clampVal((e.clientY - cy) / cy) * maxY;
+    }
+    function clampVal(v){ return Math.max(-1, Math.min(1, v)); }
+
+    // Animation loop: smooth towards target, accumulate rotation based on velocity
+    function animate(){
+        const dx = targetX - x;
+        const dy = targetY - y;
+        x += dx * ease;
+        y += dy * ease;
+
+        // simulate rolling: rotation increases with movement speed
+        const speed = Math.hypot(dx,dy);
+        rot += speed * 0.6;
+
+        ball.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px) rotate(${rot}deg)`;
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // Permission / enabling gyro: ball acts as the tappable element (no text)
+    let enabled = false;
+    function enableGyroOnce(){
+        if(enabled) return;
+        enabled = true;
+        ball.classList.remove('idle');
+
+        // iOS 13+ requires explicit permission via DeviceOrientationEvent.requestPermission
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission().then(choice=>{
+                if(choice === 'granted'){
+                    window.addEventListener('deviceorientation', handleOrientation, true);
+                } else {
+                    // permission denied -> fallback to mouse
+                    window.addEventListener('mousemove', handleMouse, {passive:true});
+                }
+            }).catch(()=>{
+                window.addEventListener('mousemove', handleMouse, {passive:true});
+            });
+        } else if ('ondeviceorientation' in window) {
+            // Android / browsers that don't require explicit permission
+            window.addEventListener('deviceorientation', handleOrientation, true);
+        } else {
+            // no device orientation support -> fallback
+            window.addEventListener('mousemove', handleMouse, {passive:true});
+        }
+
+        // remove the tap handler after enabling
+        ball.removeEventListener('click', enableGyroOnce);
+        ball.removeEventListener('touchstart', enableGyroOnce);
+    }
+
+    // Keep the first tap/click/touch used to request permission
+    ball.addEventListener('click', enableGyroOnce, {passive:true});
+    ball.addEventListener('touchstart', enableGyroOnce, {passive:true});
+
+    // Helper for edge behavior when device orientation isn't centered: keep target bounded
+    function clampTargets(){
+        targetX = Math.max(-maxX, Math.min(maxX, targetX));
+        targetY = Math.max(-maxY, Math.min(maxY, targetY));
+    }
+    // periodically clamp to be safe
+    setInterval(clampTargets, 200);
+})();
+</script>
+</body>
+</html>
