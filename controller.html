@@ -5,7 +5,8 @@
 <title>Controller</title>
 <style>
   body { font-family:sans-serif; text-align:center; padding:2em; }
-  input { font-size:1.2em; padding:0.3em; }
+  input { font-size:1.2em; padding:0.3em; width:80%; max-width:300px; }
+  button { font-size:1.2em; padding:0.4em 1em; margin-top:0.5em; }
   #status { margin-top:1em; color:green; }
 </style>
 </head>
@@ -13,6 +14,7 @@
 <h2>Remote Ball Controller</h2>
 <p>Enter the ID shown on your computer:</p>
 <input id="peerId" placeholder="Viewer ID">
+<br>
 <button id="connectBtn">Connect</button>
 <div id="status"></div>
 
@@ -21,37 +23,52 @@
 let peer = new Peer();
 let conn;
 let connected = false;
-let w = window.innerWidth, h = window.innerHeight;
 
-document.getElementById('connectBtn').onclick = () => {
-  const id = document.getElementById('peerId').value.trim();
+const status = document.getElementById('status');
+const connectBtn = document.getElementById('connectBtn');
+const peerInput = document.getElementById('peerId');
+
+connectBtn.onclick = () => {
+  const id = peerInput.value.trim();
+  if (!id) {
+    alert("Please enter the viewer ID");
+    return;
+  }
   conn = peer.connect(id);
   conn.on('open', () => {
-    document.getElementById('status').textContent = 'Connected!';
     connected = true;
+    status.textContent = 'Connected! Tilt your phone to move the ball.';
     enableGyro();
+  });
+  conn.on('error', err => {
+    status.textContent = 'Connection failed: ' + err;
   });
 };
 
-function enableGyro(){
+function enableGyro() {
+  // iOS requires user permission for motion sensors
   if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission().then(p=>{
-      if(p === 'granted') window.addEventListener('deviceorientation', sendTilt, true);
-    });
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === 'granted') {
+          window.addEventListener('deviceorientation', handleTilt);
+        } else {
+          alert('Motion permission denied.');
+        }
+      })
+      .catch(console.error);
   } else {
-    window.addEventListener('deviceorientation', sendTilt, true);
+    window.addEventListener('deviceorientation', handleTilt);
   }
 }
 
-function sendTilt(e){
-  if(!connected) return;
-  let g = e.gamma || 0; // left-right
-  let b = e.beta  || 0; // front-back
-  g = Math.max(-30, Math.min(30, g));
-  b = Math.max(-30, Math.min(30, b));
-  const x = (g / 30) * (w/2 - 44);
-  const y = (b / 30) * (h/2 - 44);
-  conn.send({x, y});
+function handleTilt(e) {
+  if (!connected || !conn?.open) return;
+  const gamma = e.gamma || 0; // left-right tilt
+  const beta = e.beta || 0;   // front-back tilt
+  const x = Math.max(-30, Math.min(30, gamma)) * 5;
+  const y = Math.max(-30, Math.min(30, beta)) * 5;
+  conn.send({ x, y });
 }
 </script>
 </body>

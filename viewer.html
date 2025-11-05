@@ -23,22 +23,24 @@
 <div id="ball"></div>
 <div id="info">Connecting...</div>
 
-<!-- Load PeerJS -->
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
 const ball = document.getElementById('ball');
 const info = document.getElementById('info');
-let peer = new Peer();
+const peer = new Peer();
 
 peer.on('open', id => {
-  info.innerHTML = 'Your ID: <b>' + id + '</b><br>Open controller.html on your phone and enter this ID.';
+  info.innerHTML = `Your ID: <b>${id}</b><br>Open controller.html on your phone and enter this ID.`;
 });
 
 peer.on('connection', conn => {
-  info.textContent = 'Connected!';
+  info.textContent = 'Connected! Move your phone to control the ball.';
   conn.on('data', data => {
-    const {x, y} = data;
-    ball.style.transform = `translate(-50%,-50%) translate(${x}px, ${y}px)`;
+    const { x, y } = data;
+    ball.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+  });
+  conn.on('close', () => {
+    info.textContent = 'Connection lost. Reload both pages.';
   });
 });
 </script>
