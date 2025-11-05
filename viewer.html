@@ -23,11 +23,55 @@
     font-family:sans-serif; font-size:16px;
     color: #fff;
   }
+  #controls {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 0;
+  }
+  #controls label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 14px;
+  }
+  #controls input[type="range"] {
+    margin-top: 5px;
+    width: 80px;
+    height: 4px;
+  }
+  #controls input[type="range"]::-webkit-slider-thumb {
+    width: 10px;
+    height: 10px;
+  }
+  #randomizeBtn {
+    padding: 5px 10px;
+    font-size: 16px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 <div id="swarm"></div>
 <div id="info">Connecting...</div>
+
+<div id="controls">
+  <label for="sizeSlider">Size
+    <input type="range" id="sizeSlider" min="0.5" max="2" step="0.1" value="1">
+  </label>
+  <label for="blurSlider">Blur
+    <input type="range" id="blurSlider" min="0" max="50" step="1" value="20">
+  </label>
+  <button id="randomizeBtn">Randomize Shapes</button>
+</div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
@@ -83,6 +127,36 @@ for(let i = 0; i < shapeCount; i++) {
     y: randomRange(0.5, 1.5),
   });
 }
+
+const sizeSlider = document.getElementById('sizeSlider');
+const blurSlider = document.getElementById('blurSlider');
+const randomizeBtn = document.getElementById('randomizeBtn');
+
+sizeSlider.addEventListener('input', () => {
+  const scaleValue = sizeSlider.value;
+  shapes.forEach(shape => {
+    shape.style.transform = `scale(${scaleValue})`;
+  });
+});
+
+blurSlider.addEventListener('input', () => {
+  const blurValue = blurSlider.value;
+  shapes.forEach(shape => {
+    shape.style.filter = `blur(${blurValue}px)`;
+  });
+});
+
+randomizeBtn.addEventListener('click', () => {
+  for(let i = 0; i < shapeCount; i++) {
+    const shape = shapes[i];
+    const size = shape.offsetWidth;
+    const newLeft = randomRange(0, window.innerWidth - size);
+    const newTop = randomRange(0, window.innerHeight - size);
+    basePositions[i] = { x: newLeft, y: newTop };
+    shape.style.left = `${newLeft}px`;
+    shape.style.top = `${newTop}px`;
+  }
+});
 
 peer.on('open', id => {
   info.innerHTML = `<b>${id}</b>`;
