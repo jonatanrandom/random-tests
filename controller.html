@@ -37,18 +37,6 @@ connectBtn.onclick = () => {
   conn.on('open', () => {
     connected = true;
     status.textContent = 'Connected!';
-    // Hide all UI elements and show centered logo on white background
-    document.body.innerHTML = `
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: white;
-      ">
-        <img src="assets/Samsung_Galaxy_logo.svg" style="width: 50vw;" alt="Logo">
-      </div>
-    `;
     enableSensors();
   });
   conn.on('error', err => {
@@ -92,8 +80,8 @@ function handleMotion(e) {
   if (!acc) return;
   const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
   const now = Date.now();
-  // threshold: 20 m/s² is a noticeable jerk/drop
-  if (mag > 20 && now - lastSpikeTime > 1500) {
+  // threshold: 10 m/s² is a noticeable jerk/drop
+  if (mag > 10 && now - lastSpikeTime > 1500) {
     lastSpikeTime = now;
     conn.send({ type: 'spike' });
   }
