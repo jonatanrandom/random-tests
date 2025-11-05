@@ -22,7 +22,6 @@
 let peer = new Peer();
 let conn;
 let connected = false;
-let lastSpikeTime = 0;
 
 const status = document.getElementById('status');
 const connectBtn = document.getElementById('connectBtn');
@@ -52,7 +51,6 @@ function enableGyro() {
       .then(response => {
         if (response === 'granted') {
           window.addEventListener('deviceorientation', handleTilt);
-          window.addEventListener('devicemotion', handleMotion);
         } else {
           alert('Motion permission denied.');
         }
@@ -60,7 +58,6 @@ function enableGyro() {
       .catch(console.error);
   } else {
     window.addEventListener('deviceorientation', handleTilt);
-    window.addEventListener('devicemotion', handleMotion);
   }
 }
 
@@ -70,22 +67,7 @@ function handleTilt(e) {
   const beta = e.beta || 0;   // front-back tilt
   const x = Math.max(-30, Math.min(30, gamma)) * 5;
   const y = Math.max(-30, Math.min(30, beta)) * 5;
-  conn.send({ type: 'tilt', x, y });
-}
-
-function handleMotion(e) {
-  if (!connected || !conn?.open) return;
-  const acc = e.accelerationIncludingGravity;
-  if (!acc) return;
-  const x = acc.x || 0;
-  const y = acc.y || 0;
-  const z = acc.z || 0;
-  const magnitude = Math.sqrt(x*x + y*y + z*z);
-  const now = Date.now();
-  if (magnitude > 25 && now - lastSpikeTime > 3000) {
-    lastSpikeTime = now;
-    conn.send({ type: 'spike' });
-  }
+  conn.send({ x, y });
 }
 </script>
 </body>
