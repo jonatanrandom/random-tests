@@ -28,10 +28,10 @@
 <script>
 const ball = document.getElementById('ball');
 const info = document.getElementById('info');
-const peer = new Peer();
+const peer = new Peer('1');
 
 peer.on('open', id => {
-  info.innerHTML = `Your ID: <b>${id}</b><br>Open controller.html on your phone and enter this ID.`;
+  info.innerHTML = `Your ID: 1`;
 });
 
 peer.on('connection', conn => {
