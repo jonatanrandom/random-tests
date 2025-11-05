@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Viewer</title>
 <style>
-  html, body { height:100%; margin:0; background:#fff; overflow:hidden; }
+  html, body { height:100%; margin:0; background:#000; color:#fff; overflow:hidden; }
   #swarm {
     position: absolute;
     width: 100%;
@@ -16,10 +16,12 @@
     position: absolute;
     filter: blur(20px);
     transition: left 0.15s ease-out, top 0.15s ease-out;
+    background: #fff;
   }
   #info {
     position:fixed; top:10px; left:10px;
     font-family:sans-serif; font-size:16px;
+    color: #fff;
   }
 </style>
 </head>
@@ -49,8 +51,8 @@ for(let i = 0; i < shapeCount; i++) {
   shape.className = 'shape';
   shape.id = `shape${i}`;
 
-  // Random size between 80 and 200 px
-  const size = randomRange(80, 200);
+  // Random size between 100 and 400 px
+  const size = randomRange(100, 400);
   shape.style.width = `${size}px`;
   shape.style.height = `${size}px`;
 
@@ -63,14 +65,14 @@ for(let i = 0; i < shapeCount; i++) {
   // Store base position for independent movement
   basePositions.push({ x: left, y: top });
 
-  // Background color always black
-  shape.style.background = `#000`;
+  // Background color always white (inverted)
+  shape.style.background = `#fff`;
 
   // Random border-radius for varied shapes
   shape.style.borderRadius = `${randomRange(20, 80)}%`;
 
-  // Random opacity between 0.3 and 0.7
-  shape.style.opacity = randomRange(0.3, 0.7);
+  // Random opacity between 0.3 and 1
+  shape.style.opacity = randomRange(0.3, 1);
 
   swarm.appendChild(shape);
   shapes.push(shape);
