@@ -31,11 +31,11 @@ const info = document.getElementById('info');
 const peer = new Peer();
 
 peer.on('open', id => {
-  info.innerHTML = `Your ID: <b>${id}</b><br>Open controller.html on your phone and enter this ID.`;
+  info.innerHTML = `<b>${id}</b>`;
 });
 
 peer.on('connection', conn => {
-  info.textContent = 'Connected! Move your phone to control the ball.';
+  info.textContent = 'Connected!';
   conn.on('data', data => {
     const { x, y } = data;
     const ballWidth = ball.offsetWidth;

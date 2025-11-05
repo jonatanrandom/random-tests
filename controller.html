@@ -11,8 +11,7 @@
 </style>
 </head>
 <body>
-<h2>Remote Ball Controller</h2>
-<p>Enter the ID shown on your computer:</p>
+<h2>controller</h2>
 <input id="peerId" placeholder="Viewer ID">
 <br>
 <button id="connectBtn">Connect</button>
@@ -37,7 +36,7 @@ connectBtn.onclick = () => {
   conn = peer.connect(id);
   conn.on('open', () => {
     connected = true;
-    status.textContent = 'Connected! Tilt your phone to move the ball.';
+    status.textContent = 'Connected!';
     enableGyro();
   });
   conn.on('error', err => {
