@@ -28,7 +28,11 @@
 <script>
 const ball = document.getElementById('ball');
 const info = document.getElementById('info');
-const peer = new Peer('1');
+const peer = new Peer('1', {
+  host: 'peerjs.com',
+  port: 443,
+  secure: true
+});
 
 peer.on('open', id => {
   info.innerHTML = `Your ID: 1`;
@@ -52,6 +56,10 @@ peer.on('connection', conn => {
   conn.on('close', () => {
     info.textContent = 'Connection lost. Reload both pages.';
   });
+});
+
+peer.on('error', err => {
+  info.textContent = 'PeerJS error: ' + err;
 });
 </script>
 </body>
