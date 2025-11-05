@@ -93,7 +93,7 @@ function handleMotion(e) {
   const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
   const now = Date.now();
   // threshold: 20 m/s² is a noticeable jerk/drop
-  if (mag > 10 && now - lastSpikeTime > 1500) {
+  if (mag > 20 && now - lastSpikeTime > 1500) {
     lastSpikeTime = now;
     conn.send({ type: 'spike' });
   }
