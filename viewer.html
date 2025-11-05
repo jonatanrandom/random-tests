@@ -10,7 +10,9 @@
     width:88px; height:88px;
     border-radius:50%;
     background:#000;
-    transition: transform 0.1s ease-out;
+    left:50%; top:50%;
+    transform:translate(-50%, -50%);
+    transition:left 0.2s ease-out, top 0.2s ease-out;
   }
   #info {
     position:fixed; top:10px; left:10px;
@@ -38,8 +40,10 @@ peer.on('connection', conn => {
     const { x, y } = data;
     const ballWidth = ball.offsetWidth;
     const ballHeight = ball.offsetHeight;
-    const left = Math.min(window.innerWidth - ballWidth / 2, Math.max(ballWidth / 2, x));
-    const top = Math.min(window.innerHeight - ballHeight / 2, Math.max(ballHeight / 2, y));
+    let left = window.innerWidth / 2 + x;
+    let top = window.innerHeight / 2 + y;
+    left = Math.min(window.innerWidth - ballWidth / 2, Math.max(ballWidth / 2, left));
+    top = Math.min(window.innerHeight - ballHeight / 2, Math.max(ballHeight / 2, top));
     ball.style.left = `${left}px`;
     ball.style.top = `${top}px`;
   });
