@@ -5,14 +5,17 @@
 <title>Viewer</title>
 <style>
   html, body { height:100%; margin:0; background:#fff; overflow:hidden; }
-  #ball {
-    position:absolute;
-    width:88px; height:88px;
-    border-radius:50%;
-    background:#000;
-    left:50%; top:50%;
-    transform:translate(-50%, -50%);
-    transition:left 0.2s ease-out, top 0.2s ease-out;
+  #swarm {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    top: 0;
+  }
+  .shape {
+    position: absolute;
+    filter: blur(10px);
+    transition: left 0.3s ease-out, top 0.3s ease-out;
   }
   #info {
     position:fixed; top:10px; left:10px;
@@ -21,14 +24,62 @@
 </style>
 </head>
 <body>
-<div id="ball"></div>
+<div id="swarm"></div>
 <div id="info">Connecting...</div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-const ball = document.getElementById('ball');
+const swarm = document.getElementById('swarm');
 const info = document.getElementById('info');
 const peer = new Peer();
+
+const shapes = [];
+const motionCoeffs = [];
+const shapeCount = 20;
+
+// Helper function to generate random number in range [min, max]
+function randomRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+// Create shapes with random styles and motion coefficients
+for(let i = 0; i < shapeCount; i++) {
+  const shape = document.createElement('div');
+  shape.className = 'shape';
+  shape.id = `shape${i}`;
+
+  // Random size between 30 and 100 px
+  const size = randomRange(30, 100);
+  shape.style.width = `${size}px`;
+  shape.style.height = `${size}px`;
+
+  // Random initial position within window bounds
+  const left = randomRange(0, window.innerWidth - size);
+  const top = randomRange(0, window.innerHeight - size);
+  shape.style.left = `${left}px`;
+  shape.style.top = `${top}px`;
+
+  // Random background color pastel style
+  const hue = Math.floor(randomRange(0, 360));
+  const saturation = randomRange(60, 80);
+  const lightness = randomRange(60, 80);
+  shape.style.background = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+  // Random border-radius for varied shapes
+  shape.style.borderRadius = `${randomRange(20, 80)}%`;
+
+  // Random opacity between 0.3 and 0.7
+  shape.style.opacity = randomRange(0.3, 0.7);
+
+  swarm.appendChild(shape);
+  shapes.push(shape);
+
+  // Store motion coefficients for x and y (between 0.5 and 1.5)
+  motionCoeffs.push({
+    x: randomRange(0.5, 1.5),
+    y: randomRange(0.5, 1.5),
+  });
+}
 
 peer.on('open', id => {
   info.innerHTML = `<b>${id}</b>`;
@@ -38,16 +89,30 @@ peer.on('connection', conn => {
   info.textContent = 'Connected!';
   conn.on('data', data => {
     const { x, y } = data;
-    const ballWidth = ball.offsetWidth;
-    const ballHeight = ball.offsetHeight;
-    const scaleX = window.innerWidth / 2 / 150;
-    const scaleY = window.innerHeight / 2 / 150;
-    let left = window.innerWidth / 2 + x * scaleX;
-    let top = window.innerHeight / 2 + y * scaleY;
-    left = Math.min(window.innerWidth - ballWidth / 2, Math.max(ballWidth / 2, left));
-    top = Math.min(window.innerHeight - ballHeight / 2, Math.max(ballHeight / 2, top));
-    ball.style.left = `${left}px`;
-    ball.style.top = `${top}px`;
+
+    // For each shape, update position based on x,y scaled by motion coefficients
+    for(let i = 0; i < shapeCount; i++) {
+      const shape = shapes[i];
+      const coeff = motionCoeffs[i];
+      const size = shape.offsetWidth;
+
+      // Calculate center base position (middle of window)
+      const baseX = window.innerWidth / 2;
+      const baseY = window.innerHeight / 2;
+
+      // Scale input tilt by coefficients and a fixed factor for motion range
+      const scaleFactor = 1.5; // adjust for more/less movement
+
+      let left = baseX + x * coeff.x * scaleFactor - size / 2;
+      let top = baseY + y * coeff.y * scaleFactor - size / 2;
+
+      // Clamp positions within window bounds
+      left = Math.min(window.innerWidth - size, Math.max(0, left));
+      top = Math.min(window.innerHeight - size, Math.max(0, top));
+
+      shape.style.left = `${left}px`;
+      shape.style.top = `${top}px`;
+    }
   });
   conn.on('close', () => {
     info.textContent = 'Connection lost. Reload both pages.';
