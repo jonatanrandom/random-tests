@@ -74,14 +74,19 @@ function handleTilt(e) {
 
 // Detect spikes in acceleration
 let lastSpikeTime = 0;
+let smoothMag = 0;
+
 function handleMotion(e) {
   if (!connected || !conn?.open) return;
   const acc = e.accelerationIncludingGravity;
   if (!acc) return;
-  const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+
+  const mag = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
+  smoothMag = 0.8 * smoothMag + 0.2 * mag; // low-pass filter to smooth noise
   const now = Date.now();
-  // threshold: 10 m/s² is a noticeable jerk/drop
-  if (mag > 10 && now - lastSpikeTime > 1500) {
+
+  // Trigger only on strong motion
+  if (smoothMag > 18 && now - lastSpikeTime > 1500) {
     lastSpikeTime = now;
     conn.send({ type: 'spike' });
   }
