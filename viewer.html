@@ -82,7 +82,7 @@ const peer = new Peer();
 const shapes = [];
 const motionCoeffs = [];
 const basePositions = [];
-const shapeCount = 10;
+const shapeCount = 15;
 
 // Helper function to generate random number in range [min, max]
 function randomRange(min, max) {
@@ -96,7 +96,7 @@ for(let i = 0; i < shapeCount; i++) {
   shape.id = `shape${i}`;
 
   // Random size between 100 and 400 px
-  const size = randomRange(100, 400);
+  const size = randomRange(150, 400);
   shape.style.width = `${size}px`;
   shape.style.height = `${size}px`;
 
