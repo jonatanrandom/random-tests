@@ -37,20 +37,21 @@ connectBtn.onclick = () => {
   conn.on('open', () => {
     connected = true;
     status.textContent = 'Connected!';
-    enableGyro();
+    enableSensors();
   });
   conn.on('error', err => {
     status.textContent = 'Connection failed: ' + err;
   });
 };
 
-function enableGyro() {
-  // iOS requires user permission for motion sensors
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
+function enableSensors() {
+  // iOS motion permission
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission()
       .then(response => {
         if (response === 'granted') {
           window.addEventListener('deviceorientation', handleTilt);
+          window.addEventListener('devicemotion', handleMotion);
         } else {
           alert('Motion permission denied.');
         }
@@ -58,16 +59,32 @@ function enableGyro() {
       .catch(console.error);
   } else {
     window.addEventListener('deviceorientation', handleTilt);
+    window.addEventListener('devicemotion', handleMotion);
   }
 }
 
 function handleTilt(e) {
   if (!connected || !conn?.open) return;
-  const gamma = e.gamma || 0; // left-right tilt
-  const beta = e.beta || 0;   // front-back tilt
+  const gamma = e.gamma || 0;
+  const beta = e.beta || 0;
   const x = Math.max(-30, Math.min(30, gamma)) * 5;
   const y = Math.max(-30, Math.min(30, beta)) * 5;
-  conn.send({ x, y });
+  conn.send({ type: 'tilt', x, y });
+}
+
+// Detect spikes in acceleration
+let lastSpikeTime = 0;
+function handleMotion(e) {
+  if (!connected || !conn?.open) return;
+  const acc = e.accelerationIncludingGravity;
+  if (!acc) return;
+  const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+  const now = Date.now();
+  // threshold: 20 m/s² is a noticeable jerk/drop
+  if (mag > 20 && now - lastSpikeTime > 1500) {
+    lastSpikeTime = now;
+    conn.send({ type: 'spike' });
+  }
 }
 </script>
 </body>

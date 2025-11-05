@@ -184,15 +184,35 @@ peer.on('open', id => {
 
 peer.on('connection', conn => {
   info.textContent = 'Connected!';
-  conn.on('data', data => {
-    const { x, y } = data;
-    tiltData.x = x;
-    tiltData.y = y;
-  });
+conn.on('data', data => {
+  if (data.type === 'tilt') {
+    tiltData.x = data.x;
+    tiltData.y = data.y;
+  } else if (data.type === 'spike') {
+    triggerSpikeEffect();
+  }
+});
   conn.on('close', () => {
     info.textContent = 'Connection lost. Reload both pages.';
   });
 });
+
+function triggerSpikeEffect() {
+  shapes.forEach(shape => {
+    const originalOpacity = parseFloat(shape.style.opacity) || 1;
+    // Start at current opacity → go to 1.0
+    shape.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
+    shape.style.transform = 'scale(5)';
+    shape.style.opacity = '1';
+
+    // Then return slowly over 5 seconds
+    setTimeout(() => {
+      shape.style.transition = 'transform 5s ease-in, opacity 5s ease-in';
+      shape.style.transform = 'scale(1)';
+      shape.style.opacity = originalOpacity;
+    }, 500);
+  });
+}
 
 // Animation loop for slow floating drift and tilt displacement
 let lastTimestamp = null;
