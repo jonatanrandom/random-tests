@@ -14,8 +14,8 @@
   }
   .shape {
     position: absolute;
-    filter: blur(10px);
-    transition: left 0.3s ease-out, top 0.3s ease-out;
+    filter: blur(20px);
+    transition: left 0.15s ease-out, top 0.15s ease-out;
   }
   #info {
     position:fixed; top:10px; left:10px;
@@ -35,7 +35,8 @@ const peer = new Peer();
 
 const shapes = [];
 const motionCoeffs = [];
-const shapeCount = 20;
+const basePositions = [];
+const shapeCount = 10;
 
 // Helper function to generate random number in range [min, max]
 function randomRange(min, max) {
@@ -48,8 +49,8 @@ for(let i = 0; i < shapeCount; i++) {
   shape.className = 'shape';
   shape.id = `shape${i}`;
 
-  // Random size between 30 and 100 px
-  const size = randomRange(30, 100);
+  // Random size between 80 and 200 px
+  const size = randomRange(80, 200);
   shape.style.width = `${size}px`;
   shape.style.height = `${size}px`;
 
@@ -59,11 +60,11 @@ for(let i = 0; i < shapeCount; i++) {
   shape.style.left = `${left}px`;
   shape.style.top = `${top}px`;
 
-  // Random background color pastel style
-  const hue = Math.floor(randomRange(0, 360));
-  const saturation = randomRange(60, 80);
-  const lightness = randomRange(60, 80);
-  shape.style.background = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  // Store base position for independent movement
+  basePositions.push({ x: left, y: top });
+
+  // Background color always black
+  shape.style.background = `#000`;
 
   // Random border-radius for varied shapes
   shape.style.borderRadius = `${randomRange(20, 80)}%`;
@@ -90,21 +91,22 @@ peer.on('connection', conn => {
   conn.on('data', data => {
     const { x, y } = data;
 
-    // For each shape, update position based on x,y scaled by motion coefficients
+    // For each shape, update position based on base position plus x,y scaled by motion coefficients and random drift
     for(let i = 0; i < shapeCount; i++) {
       const shape = shapes[i];
       const coeff = motionCoeffs[i];
       const size = shape.offsetWidth;
-
-      // Calculate center base position (middle of window)
-      const baseX = window.innerWidth / 2;
-      const baseY = window.innerHeight / 2;
+      const base = basePositions[i];
 
       // Scale input tilt by coefficients and a fixed factor for motion range
       const scaleFactor = 1.5; // adjust for more/less movement
 
-      let left = baseX + x * coeff.x * scaleFactor - size / 2;
-      let top = baseY + y * coeff.y * scaleFactor - size / 2;
+      // Add small random drift for organic movement
+      const driftX = randomRange(-0.5, 0.5);
+      const driftY = randomRange(-0.5, 0.5);
+
+      let left = base.x + x * coeff.x * scaleFactor + driftX;
+      let top = base.y + y * coeff.y * scaleFactor + driftY;
 
       // Clamp positions within window bounds
       left = Math.min(window.innerWidth - size, Math.max(0, left));
