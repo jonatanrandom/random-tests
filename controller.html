@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controller</title>
+<style>
+  body { font-family:sans-serif; text-align:center; padding:2em; }
+  input { font-size:1.2em; padding:0.3em; }
+  #status { margin-top:1em; color:green; }
+</style>
+</head>
+<body>
+<h2>Remote Ball Controller</h2>
+<p>Enter the ID shown on your computer:</p>
+<input id="peerId" placeholder="Viewer ID">
+<button id="connectBtn">Connect</button>
+<div id="status"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+let peer = new Peer();
+let conn;
+let connected = false;
+let w = window.innerWidth, h = window.innerHeight;
+
+document.getElementById('connectBtn').onclick = () => {
+  const id = document.getElementById('peerId').value.trim();
+  conn = peer.connect(id);
+  conn.on('open', () => {
+    document.getElementById('status').textContent = 'Connected!';
+    connected = true;
+    enableGyro();
+  });
+};
+
+function enableGyro(){
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(p=>{
+      if(p === 'granted') window.addEventListener('deviceorientation', sendTilt, true);
+    });
+  } else {
+    window.addEventListener('deviceorientation', sendTilt, true);
+  }
+}
+
+function sendTilt(e){
+  if(!connected) return;
+  let g = e.gamma || 0; // left-right
+  let b = e.beta  || 0; // front-back
+  g = Math.max(-30, Math.min(30, g));
+  b = Math.max(-30, Math.min(30, b));
+  const x = (g / 30) * (w/2 - 44);
+  const y = (b / 30) * (h/2 - 44);
+  conn.send({x, y});
+}
+</script>
+</body>
+</html>
