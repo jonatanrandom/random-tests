@@ -15,7 +15,7 @@
   .shape {
     position: absolute;
     filter: blur(20px);
-    transition: left 0.15s ease-out, top 0.15s ease-out;
+    transition: left 0.15s ease-out, top 0.15s ease-out, transform 0.5s ease, opacity 0.5s ease;
     background: #fff;
   }
   #info {
@@ -82,6 +82,7 @@ const peer = new Peer();
 const shapes = [];
 const motionCoeffs = [];
 const basePositions = [];
+const baseOpacities = [];
 const shapeCount = 15;
 
 // Helper function to generate random number in range [min, max]
@@ -116,7 +117,9 @@ for(let i = 0; i < shapeCount; i++) {
   shape.style.borderRadius = `${randomRange(20, 80)}%`;
 
   // Random opacity between 0.3 and 1
-  shape.style.opacity = randomRange(0.3, 1);
+  const opacity = randomRange(0.3, 1);
+  shape.style.opacity = opacity;
+  baseOpacities.push(opacity);
 
   swarm.appendChild(shape);
   shapes.push(shape);
@@ -185,9 +188,28 @@ peer.on('open', id => {
 peer.on('connection', conn => {
   info.textContent = 'Connected!';
   conn.on('data', data => {
-    const { x, y } = data;
-    tiltData.x = x;
-    tiltData.y = y;
+    if(data.type === 'tilt') {
+      const { x, y } = data;
+      tiltData.x = x;
+      tiltData.y = y;
+    } else if(data.type === 'spike') {
+      // Trigger spike animation: scale to 5 and opacity 1 over 0.5s, then back to normal over 5s
+      const scaleValue = sizeSlider.value;
+      shapes.forEach((shape, i) => {
+        // Immediately set transition for transform and opacity to 0.5s for spike up
+        shape.style.transition = 'transform 0.5s ease, opacity 0.5s ease, left 0.15s ease-out, top 0.15s ease-out';
+        // Scale up and full opacity
+        shape.style.transform = 'scale(5)';
+        shape.style.opacity = '1';
+
+        // After 0.5s, transition back to normal scale and base opacity over 5s
+        setTimeout(() => {
+          shape.style.transition = 'transform 5s ease, opacity 5s ease, left 0.15s ease-out, top 0.15s ease-out';
+          shape.style.transform = `scale(${scaleValue})`;
+          shape.style.opacity = baseOpacities[i];
+        }, 500);
+      });
+    }
   });
   conn.on('close', () => {
     info.textContent = 'Connection lost. Reload both pages.';
