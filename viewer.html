@@ -128,6 +128,19 @@ for(let i = 0; i < shapeCount; i++) {
   });
 }
 
+// Add slow random drifting offsets and phases for floating effect
+const driftOffsets = [];
+const driftPhases = [];
+for(let i = 0; i < shapeCount; i++) {
+  driftOffsets.push({ x: 0, y: 0 });
+  driftPhases.push({
+    x: Math.random() * 2 * Math.PI,
+    y: Math.random() * 2 * Math.PI,
+  });
+}
+
+let tiltData = { x: 0, y: 0 };
+
 const sizeSlider = document.getElementById('sizeSlider');
 const blurSlider = document.getElementById('blurSlider');
 const randomizeBtn = document.getElementById('randomizeBtn');
@@ -155,6 +168,13 @@ randomizeBtn.addEventListener('click', () => {
     basePositions[i] = { x: newLeft, y: newTop };
     shape.style.left = `${newLeft}px`;
     shape.style.top = `${newTop}px`;
+
+    // Reset drift offsets and phases on randomize
+    driftOffsets[i] = { x: 0, y: 0 };
+    driftPhases[i] = {
+      x: Math.random() * 2 * Math.PI,
+      y: Math.random() * 2 * Math.PI,
+    };
   }
 });
 
@@ -166,36 +186,59 @@ peer.on('connection', conn => {
   info.textContent = 'Connected!';
   conn.on('data', data => {
     const { x, y } = data;
-
-    // For each shape, update position based on base position plus x,y scaled by motion coefficients and random drift
-    for(let i = 0; i < shapeCount; i++) {
-      const shape = shapes[i];
-      const coeff = motionCoeffs[i];
-      const size = shape.offsetWidth;
-      const base = basePositions[i];
-
-      // Scale input tilt by coefficients and a fixed factor for motion range
-      const scaleFactor = 1.5; // adjust for more/less movement
-
-      // Add small random drift for organic movement
-      const driftX = randomRange(-0.5, 0.5);
-      const driftY = randomRange(-0.5, 0.5);
-
-      let left = base.x + x * coeff.x * scaleFactor + driftX;
-      let top = base.y + y * coeff.y * scaleFactor + driftY;
-
-      // Clamp positions within window bounds
-      left = Math.min(window.innerWidth - size, Math.max(0, left));
-      top = Math.min(window.innerHeight - size, Math.max(0, top));
-
-      shape.style.left = `${left}px`;
-      shape.style.top = `${top}px`;
-    }
+    tiltData.x = x;
+    tiltData.y = y;
   });
   conn.on('close', () => {
     info.textContent = 'Connection lost. Reload both pages.';
   });
 });
+
+// Animation loop for slow floating drift and tilt displacement
+let lastTimestamp = null;
+function animate(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const delta = (timestamp - lastTimestamp) / 1000; // seconds
+  lastTimestamp = timestamp;
+
+  const driftAmplitude = 20; // max pixels drift amplitude
+  const driftSpeed = 0.5; // radians per second
+
+  for(let i = 0; i < shapeCount; i++) {
+    const shape = shapes[i];
+    const coeff = motionCoeffs[i];
+    const size = shape.offsetWidth;
+    const base = basePositions[i];
+
+    // Update drift phases
+    driftPhases[i].x += driftSpeed * delta;
+    driftPhases[i].y += driftSpeed * delta;
+
+    // Calculate drift offsets using sine wave for smooth floating
+    driftOffsets[i].x = Math.sin(driftPhases[i].x) * driftAmplitude;
+    driftOffsets[i].y = Math.sin(driftPhases[i].y) * driftAmplitude;
+
+    // Scale input tilt by coefficients and a fixed factor for motion range
+    const scaleFactor = 1.5; // adjust for more/less movement
+
+    // Add small random drift for organic movement (same as original, but included here for tilt movement)
+    const driftX = randomRange(-0.5, 0.5);
+    const driftY = randomRange(-0.5, 0.5);
+
+    let left = base.x + tiltData.x * coeff.x * scaleFactor + driftOffsets[i].x + driftX;
+    let top = base.y + tiltData.y * coeff.y * scaleFactor + driftOffsets[i].y + driftY;
+
+    // Clamp positions within window bounds
+    left = Math.min(window.innerWidth - size, Math.max(0, left));
+    top = Math.min(window.innerHeight - size, Math.max(0, top));
+
+    shape.style.left = `${left}px`;
+    shape.style.top = `${top}px`;
+  }
+
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
 </script>
 </body>
 </html>
