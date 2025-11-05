@@ -7,11 +7,10 @@
   html, body { height:100%; margin:0; background:#fff; overflow:hidden; }
   #ball {
     position:absolute;
-    left:50%; top:50%;
     width:88px; height:88px;
     border-radius:50%;
     background:#000;
-    transform:translate(-50%,-50%);
+    transition: transform 0.1s ease-out;
   }
   #info {
     position:fixed; top:10px; left:10px;
@@ -37,7 +36,12 @@ peer.on('connection', conn => {
   info.textContent = 'Connected! Move your phone to control the ball.';
   conn.on('data', data => {
     const { x, y } = data;
-    ball.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    const ballWidth = ball.offsetWidth;
+    const ballHeight = ball.offsetHeight;
+    const left = Math.min(window.innerWidth - ballWidth / 2, Math.max(ballWidth / 2, x));
+    const top = Math.min(window.innerHeight - ballHeight / 2, Math.max(ballHeight / 2, y));
+    ball.style.left = `${left}px`;
+    ball.style.top = `${top}px`;
   });
   conn.on('close', () => {
     info.textContent = 'Connection lost. Reload both pages.';
