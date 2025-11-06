@@ -19,7 +19,7 @@
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-let peer = new Peer();
+let peer = new Peer("controller");
 let conn;
 let connected = false;
 
@@ -28,12 +28,7 @@ const connectBtn = document.getElementById('connectBtn');
 const peerInput = document.getElementById('peerId');
 
 connectBtn.onclick = () => {
-  const id = peerInput.value.trim();
-  if (!id) {
-    alert("Please enter the viewer ID");
-    return;
-  }
-  conn = peer.connect(id);
+  conn = peer.connect("viewer");
   conn.on('open', () => {
     connected = true;
     status.textContent = 'Connected!';
