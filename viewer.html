@@ -52,15 +52,42 @@
     width: 10px;
     height: 10px;
   }
-  #randomizeBtn {
-    padding: 5px 10px;
-    font-size: 16px;
-    cursor: pointer;
-  }
+</style>
+<style>
+#singleBall {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #fff;
+  filter: blur(10px);
+  opacity: 0.9;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+.prompt {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: sans-serif;
+  font-size: 24px;
+  color: #fff;
+  display: none;
+  text-align: center;
+}
+
+#leftPrompt { left: 10%; }
+#rightPrompt { right: 10%; }
 </style>
 </head>
 <body>
 <div id="swarm"></div>
+<div id="singleBall"></div>
+<div id="leftPrompt" class="prompt">Say hi to<br>Galaxy AI</div>
+<div id="rightPrompt" class="prompt">Discover new<br>camera features</div>
 <div id="info">Connecting...</div>
 
 <div id="controls">
@@ -71,6 +98,7 @@
     <input type="range" id="blurSlider" min="0" max="50" step="1" value="20">
   </label>
   <button id="randomizeBtn">Randomize Shapes</button>
+  <button id="modeBtn">Change Mode</button>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -144,6 +172,28 @@ let tiltData = { x: 0, y: 0 };
 const sizeSlider = document.getElementById('sizeSlider');
 const blurSlider = document.getElementById('blurSlider');
 const randomizeBtn = document.getElementById('randomizeBtn');
+const modeBtn = document.getElementById('modeBtn');
+const singleBall = document.getElementById('singleBall');
+const leftPrompt = document.getElementById('leftPrompt');
+const rightPrompt = document.getElementById('rightPrompt');
+
+let mode = 'swarm'; // can be 'swarm' or 'single'
+
+modeBtn.addEventListener('click', () => {
+  if (mode === 'swarm') {
+    mode = 'single';
+    swarm.style.display = 'none';
+    singleBall.style.display = 'block';
+    leftPrompt.style.display = 'block';
+    rightPrompt.style.display = 'block';
+  } else {
+    mode = 'swarm';
+    swarm.style.display = 'block';
+    singleBall.style.display = 'none';
+    leftPrompt.style.display = 'none';
+    rightPrompt.style.display = 'none';
+  }
+});
 
 sizeSlider.addEventListener('input', () => {
   const scaleValue = sizeSlider.value;
@@ -220,6 +270,28 @@ function animate(timestamp) {
   if (!lastTimestamp) lastTimestamp = timestamp;
   const delta = (timestamp - lastTimestamp) / 1000; // seconds
   lastTimestamp = timestamp;
+
+  if (mode === 'single') {
+    const coeff = { x: 1, y: 1 };
+    const scaleFactor = 1.5;
+    const baseX = window.innerWidth / 2;
+    const baseY = window.innerHeight / 2;
+    const driftX = Math.sin(timestamp / 500) * 10;
+    const driftY = Math.cos(timestamp / 500) * 10;
+
+    let left = baseX + tiltData.x * coeff.x * scaleFactor + driftX;
+    let top = baseY + tiltData.y * coeff.y * scaleFactor + driftY;
+
+    const size = singleBall.offsetWidth;
+    left = Math.min(window.innerWidth - size, Math.max(0, left));
+    top = Math.min(window.innerHeight - size, Math.max(0, top));
+
+    singleBall.style.left = `${left}px`;
+    singleBall.style.top = `${top}px`;
+
+    requestAnimationFrame(animate);
+    return;
+  }
 
   const driftAmplitude = 20; // max pixels drift amplitude
   const driftSpeed = 0.5; // radians per second
