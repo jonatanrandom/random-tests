@@ -15,6 +15,8 @@
 <input id="peerId" placeholder="Viewer ID">
 <br>
 <button id="connectBtn">Connect</button>
+<br>
+<button id="modeBtn">Change Mode</button>
 <div id="status"></div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -26,6 +28,8 @@ let connected = false;
 const status = document.getElementById('status');
 const connectBtn = document.getElementById('connectBtn');
 const peerInput = document.getElementById('peerId');
+const modeBtn = document.getElementById('modeBtn');
+modeBtn.disabled = true;
 
 connectBtn.onclick = () => {
   const id = peerInput.value.trim();
@@ -37,11 +41,19 @@ connectBtn.onclick = () => {
   conn.on('open', () => {
     connected = true;
     status.textContent = 'Connected!';
+    modeBtn.disabled = false;
     enableSensors();
   });
   conn.on('error', err => {
     status.textContent = 'Connection failed: ' + err;
   });
+};
+
+modeBtn.onclick = () => {
+  if (connected && conn?.open) {
+    conn.send({ type: 'changeMode' });
+    status.textContent = 'Mode change sent';
+  }
 };
 
 function enableSensors() {

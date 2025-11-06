@@ -308,6 +308,8 @@ conn.on('data', data => {
     tiltData.y = data.y;
   } else if (data.type === 'spike') {
     triggerSpikeEffect();
+  } else if (data.type === 'changeMode') {
+    modeBtn.click();
   }
 });
   conn.on('close', () => {
