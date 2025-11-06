@@ -105,7 +105,8 @@
 <script>
 const swarm = document.getElementById('swarm');
 const info = document.getElementById('info');
-const peer = new Peer("viewer");
+const uniqueId = `viewer-${Math.random().toString(36).substr(2, 9)}`;
+const peer = new Peer(uniqueId);
 
 const shapes = [];
 const motionCoeffs = [];
