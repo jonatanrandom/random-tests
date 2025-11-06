@@ -83,7 +83,7 @@ const peer = new Peer();
 const shapes = [];
 const motionCoeffs = [];
 const basePositions = [];
-const shapeCount = 15;
+let shapeCount = 15;
 
 // Helper function to generate random number in range [min, max]
 function randomRange(min, max) {
@@ -185,7 +185,19 @@ modeBtn.addEventListener('click', () => {
   if (mode === 'swarm') {
     // Switch to single ball mode
     mode = 'single';
-    swarm.innerHTML = ''; // clear swarm
+    // Remove only shape elements from swarm
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      if (swarm.contains(shapes[i])) {
+        swarm.removeChild(shapes[i]);
+      }
+    }
+    // Remove shapes from array
+    shapes.length = 0;
+    basePositions.length = 0;
+    motionCoeffs.length = 0;
+    driftOffsets.length = 0;
+    driftPhases.length = 0;
+
     const ball = document.createElement('div');
     ball.className = 'shape';
     ball.id = 'singleBall';
@@ -220,21 +232,30 @@ modeBtn.addEventListener('click', () => {
     swarm.appendChild(leftPrompt);
     swarm.appendChild(rightPrompt);
 
-    shapes.length = 0;
     shapes.push(ball);
-    basePositions.length = 0;
     basePositions.push({ x: window.innerWidth / 2 - 50, y: window.innerHeight / 2 - 50 });
-    motionCoeffs.length = 0;
     motionCoeffs.push({ x: 1, y: 1 });
+    driftOffsets.push({ x: 0, y: 0 });
+    driftPhases.push({ x: Math.random() * 2 * Math.PI, y: Math.random() * 2 * Math.PI });
+
+    shapeCount = 1;
   } else {
     // Switch back to swarm mode
     mode = 'swarm';
-    swarm.innerHTML = '';
-    // recreate shapes using the same logic as before
+    // Remove only shape elements from swarm
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      if (swarm.contains(shapes[i])) {
+        swarm.removeChild(shapes[i]);
+      }
+    }
+    // Remove shapes from array
     shapes.length = 0;
     basePositions.length = 0;
     motionCoeffs.length = 0;
-    for (let i = 0; i < shapeCount; i++) {
+    driftOffsets.length = 0;
+    driftPhases.length = 0;
+
+    for (let i = 0; i < 15; i++) {
       const shape = document.createElement('div');
       shape.className = 'shape';
       shape.id = `shape${i}`;
@@ -255,7 +276,13 @@ modeBtn.addEventListener('click', () => {
         x: randomRange(0.5, 1.5),
         y: randomRange(0.5, 1.5),
       });
+      driftOffsets.push({ x: 0, y: 0 });
+      driftPhases.push({
+        x: Math.random() * 2 * Math.PI,
+        y: Math.random() * 2 * Math.PI,
+      });
     }
+    shapeCount = 15;
   }
 });
 
@@ -305,7 +332,7 @@ function animate(timestamp) {
   const driftAmplitude = 20; // max pixels drift amplitude
   const driftSpeed = 0.5; // radians per second
 
-  for(let i = 0; i < shapeCount; i++) {
+  for(let i = 0; i < shapes.length; i++) {
     const shape = shapes[i];
     const coeff = motionCoeffs[i];
     const size = shape.offsetWidth;
