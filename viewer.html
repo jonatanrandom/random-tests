@@ -71,6 +71,7 @@
     <input type="range" id="blurSlider" min="0" max="50" step="1" value="20">
   </label>
   <button id="randomizeBtn">Randomize Shapes</button>
+  <button id="modeBtn">Change Mode</button>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -144,6 +145,8 @@ let tiltData = { x: 0, y: 0 };
 const sizeSlider = document.getElementById('sizeSlider');
 const blurSlider = document.getElementById('blurSlider');
 const randomizeBtn = document.getElementById('randomizeBtn');
+const modeBtn = document.getElementById('modeBtn');
+let mode = 'swarm';
 
 sizeSlider.addEventListener('input', () => {
   const scaleValue = sizeSlider.value;
@@ -175,6 +178,84 @@ randomizeBtn.addEventListener('click', () => {
       x: Math.random() * 2 * Math.PI,
       y: Math.random() * 2 * Math.PI,
     };
+  }
+});
+
+modeBtn.addEventListener('click', () => {
+  if (mode === 'swarm') {
+    // Switch to single ball mode
+    mode = 'single';
+    swarm.innerHTML = ''; // clear swarm
+    const ball = document.createElement('div');
+    ball.className = 'shape';
+    ball.id = 'singleBall';
+    ball.style.width = '100px';
+    ball.style.height = '100px';
+    ball.style.borderRadius = '50%';
+    ball.style.left = `${window.innerWidth / 2 - 50}px`;
+    ball.style.top = `${window.innerHeight / 2 - 50}px`;
+    swarm.appendChild(ball);
+
+    // Add text prompts
+    const leftPrompt = document.createElement('div');
+    leftPrompt.id = 'leftPrompt';
+    leftPrompt.innerHTML = 'Say hi to <br> Galaxy AI';
+    leftPrompt.style.position = 'absolute';
+    leftPrompt.style.top = '50%';
+    leftPrompt.style.left = '15%';
+    leftPrompt.style.transform = 'translateY(-50%)';
+    leftPrompt.style.textAlign = 'center';
+    leftPrompt.style.fontSize = '24px';
+
+    const rightPrompt = document.createElement('div');
+    rightPrompt.id = 'rightPrompt';
+    rightPrompt.innerHTML = 'Discover new <br> camera features';
+    rightPrompt.style.position = 'absolute';
+    rightPrompt.style.top = '50%';
+    rightPrompt.style.right = '15%';
+    rightPrompt.style.transform = 'translateY(-50%)';
+    rightPrompt.style.textAlign = 'center';
+    rightPrompt.style.fontSize = '24px';
+
+    swarm.appendChild(leftPrompt);
+    swarm.appendChild(rightPrompt);
+
+    shapes.length = 0;
+    shapes.push(ball);
+    basePositions.length = 0;
+    basePositions.push({ x: window.innerWidth / 2 - 50, y: window.innerHeight / 2 - 50 });
+    motionCoeffs.length = 0;
+    motionCoeffs.push({ x: 1, y: 1 });
+  } else {
+    // Switch back to swarm mode
+    mode = 'swarm';
+    swarm.innerHTML = '';
+    // recreate shapes using the same logic as before
+    shapes.length = 0;
+    basePositions.length = 0;
+    motionCoeffs.length = 0;
+    for (let i = 0; i < shapeCount; i++) {
+      const shape = document.createElement('div');
+      shape.className = 'shape';
+      shape.id = `shape${i}`;
+      const size = randomRange(150, 400);
+      shape.style.width = `${size}px`;
+      shape.style.height = `${size}px`;
+      const left = randomRange(0, window.innerWidth - size);
+      const top = randomRange(0, window.innerHeight - size);
+      shape.style.left = `${left}px`;
+      shape.style.top = `${top}px`;
+      basePositions.push({ x: left, y: top });
+      shape.style.background = '#fff';
+      shape.style.borderRadius = `${randomRange(20, 80)}%`;
+      shape.style.opacity = randomRange(0.3, 1);
+      swarm.appendChild(shape);
+      shapes.push(shape);
+      motionCoeffs.push({
+        x: randomRange(0.5, 1.5),
+        y: randomRange(0.5, 1.5),
+      });
+    }
   }
 });
 
