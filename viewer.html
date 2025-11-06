@@ -218,6 +218,8 @@ modeBtn.addEventListener('click', () => {
     leftPrompt.style.transform = 'translateY(-50%)';
     leftPrompt.style.textAlign = 'center';
     leftPrompt.style.fontSize = '24px';
+    leftPrompt.style.fontFamily = 'sans-serif';
+    leftPrompt.style.fontWeight = 'bold';
 
     const rightPrompt = document.createElement('div');
     rightPrompt.id = 'rightPrompt';
@@ -228,6 +230,8 @@ modeBtn.addEventListener('click', () => {
     rightPrompt.style.transform = 'translateY(-50%)';
     rightPrompt.style.textAlign = 'center';
     rightPrompt.style.fontSize = '24px';
+    rightPrompt.style.fontFamily = 'sans-serif';
+    rightPrompt.style.fontWeight = 'bold';
 
     swarm.appendChild(leftPrompt);
     swarm.appendChild(rightPrompt);
@@ -242,6 +246,12 @@ modeBtn.addEventListener('click', () => {
   } else {
     // Switch back to swarm mode
     mode = 'swarm';
+
+    const leftPrompt = document.getElementById('leftPrompt');
+    const rightPrompt = document.getElementById('rightPrompt');
+    if (leftPrompt) leftPrompt.remove();
+    if (rightPrompt) rightPrompt.remove();
+
     // Remove only shape elements from swarm
     for (let i = shapes.length - 1; i >= 0; i--) {
       if (swarm.contains(shapes[i])) {
@@ -347,7 +357,7 @@ function animate(timestamp) {
     driftOffsets[i].y = Math.sin(driftPhases[i].y) * driftAmplitude;
 
     // Scale input tilt by coefficients and a fixed factor for motion range
-    const scaleFactor = 1.5; // adjust for more/less movement
+    const scaleFactor = 5; // increased for ball to reach text prompts
 
     // Add small random drift for organic movement (same as original, but included here for tilt movement)
     const driftX = randomRange(-0.5, 0.5);
