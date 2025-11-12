@@ -81,7 +81,7 @@ function handleTilt(e) {
   if (!connected || !conn?.open) return;
 
   const beta = e.beta || 0; // front-back tilt, range ~[-180,180]
-  const isPickedUp = Math.abs(beta) > 30; // threshold angle
+  const isPickedUp = Math.abs(beta) > 10; // threshold angle
 
   const desiredMode = isPickedUp ? 'gather' : 'ungather';
   if (desiredMode !== currentMode) {
