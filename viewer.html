@@ -1,384 +1,378 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viewer</title>
-<style>
-  html, body { height:100%; margin:0; background:#000; color:#fff; overflow:hidden; }
-  #swarm {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    left: 0;
-    top: 0;
-  }
-  .shape {
-    position: absolute;
-    filter: blur(20px);
-    transition: left 0.15s ease-out, top 0.15s ease-out;
-    background: #fff;
-  }
-  #info {
-    position:fixed; top:10px; left:10px;
-    font-family:sans-serif; font-size:16px;
-    color: #fff;
-  }
-  #controls {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background: rgba(0,0,0,0);
-    color: #fff;
-    font-family: sans-serif;
-    font-size: 16px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    padding: 10px 0;
-  }
-  #controls label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 14px;
-  }
-  #controls input[type="range"] {
-    margin-top: 5px;
-    width: 80px;
-    height: 4px;
-  }
-  #controls input[type="range"]::-webkit-slider-thumb {
-    width: 10px;
-    height: 10px;
-  }
-  #randomizeBtn {
-    padding: 5px 10px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Dappled Light Simulation</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    .ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      color: white;
+      font-family: sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 6px 8px;
+      border-radius: 4px;
+    }
+    .ui p {
+      margin: 4px 0;
+    }
+    .ui input[type=range] {
+      width: 160px;
+    }
+    .ui button {
+      margin-top: 4px;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 3px 6px;
+      cursor: pointer;
+      display: block;
+    }
+    .ui button:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  </style>
 </head>
 <body>
-<div id="swarm"></div>
-<div id="info">Connecting...</div>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script>
+    let peer = new Peer();
+    let tiltData = { x: 0, y: 0 };
+    let borderMargin = 90; // adjustable border width to keep blobs away from edges
 
-<div id="controls">
-  <label for="sizeSlider">Size
-    <input type="range" id="sizeSlider" min="0.5" max="2" step="0.1" value="1">
-  </label>
-  <label for="blurSlider">Blur
-    <input type="range" id="blurSlider" min="0" max="50" step="1" value="20">
-  </label>
-  <button id="randomizeBtn">Randomize Shapes</button>
-  <button id="modeBtn">Change Mode</button>
-</div>
+    peer.on('connection', conn => {
+      conn.on('data', data => {
+        if (data.type === 'tilt') {
+          tiltData.x = data.x;
+          tiltData.y = data.y;
+        }
+      });
+    });
+    // Show viewer ID in UI
+    peer.on('open', id => {
+      let idElement = document.getElementById('peerId');
+      if (idElement) idElement.textContent = id;
+    });
+  </script>
 
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script>
-const swarm = document.getElementById('swarm');
-const info = document.getElementById('info');
-const peer = new Peer();
+  <script>
+    let spots = [];
+    let numSpots = 120;
+    let windOffset = 0;
+    let numSpotsSlider, sizeSlider;
+    let lastNumSpots = numSpots;
+    let lastMaxSize = 90;
 
-const shapes = [];
-const motionCoeffs = [];
-const basePositions = [];
-let shapeCount = 15;
+    let gathering = false;
+    let gatherSpeed = 0.05; // how fast the spots move toward center
 
-// Helper function to generate random number in range [min, max]
-function randomRange(min, max) {
-  return Math.random() * (max - min) + min;
-}
+    let collisionEase = 1.0; // starts at full strength
 
-// Create shapes with random styles and motion coefficients
-for(let i = 0; i < shapeCount; i++) {
-  const shape = document.createElement('div');
-  shape.className = 'shape';
-  shape.id = `shape${i}`;
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      noStroke();
 
-  // Random size between 100 and 400 px
-  const size = randomRange(150, 400);
-  shape.style.width = `${size}px`;
-  shape.style.height = `${size}px`;
+      // UI container div
+      let uiDiv = createDiv().class('ui');
+      let controlsDiv = createDiv().parent(uiDiv);
 
-  // Random initial position within window bounds
-  const left = randomRange(0, window.innerWidth - size);
-  const top = randomRange(0, window.innerHeight - size);
-  shape.style.left = `${left}px`;
-  shape.style.top = `${top}px`;
+      createP(`<span id="peerId">Loading...</span>`).parent(controlsDiv);
 
-  // Store base position for independent movement
-  basePositions.push({ x: left, y: top });
+      createP('Blobs').parent(controlsDiv);
+      numSpotsSlider = createSlider(20, 300, numSpots, 1).parent(controlsDiv);
 
-  // Background color always white (inverted)
-  shape.style.background = `#fff`;
+      createP('Size').parent(controlsDiv);
+      sizeSlider = createSlider(30, 200, 90, 1).parent(controlsDiv);
 
-  // Random border-radius for varied shapes
-  shape.style.borderRadius = `${randomRange(20, 80)}%`;
+      let hideUIButton = createButton('Hide UI').parent(uiDiv);
+      hideUIButton.mousePressed(() => {
+        if (controlsDiv.style('display') === 'none') {
+          controlsDiv.style('display', 'block');
+          hideUIButton.html('Hide UI');
+        } else {
+          controlsDiv.style('display', 'none');
+          hideUIButton.html('Show UI');
+        }
+      });
 
-  // Random opacity between 0.3 and 1
-  shape.style.opacity = randomRange(0.3, 1);
+      let gatherButton = createButton('Gather').parent(uiDiv);
+      gatherButton.mousePressed(() => {
+        gathering = !gathering;
+        gatherButton.html(gathering ? 'Ungather' : 'Gather');
 
-  swarm.appendChild(shape);
-  shapes.push(shape);
+        // When un-gathering, gently spread blobs back out
+        if (!gathering) {
+          for (let s of spots) {
+            s.targetX = random(borderMargin, width - borderMargin);
+            s.targetY = random(borderMargin, height - borderMargin);
+            s.gatherInitialized = false; // reset gather state for next time
+          }
+        }
+      });
 
-  // Store motion coefficients for x and y (between 0.5 and 1.5)
-  motionCoeffs.push({
-    x: randomRange(0.5, 1.5),
-    y: randomRange(0.5, 1.5),
-  });
-}
+      regenerateSpots();
+    }
 
-// Add slow random drifting offsets and phases for floating effect
-const driftOffsets = [];
-const driftPhases = [];
-for(let i = 0; i < shapeCount; i++) {
-  driftOffsets.push({ x: 0, y: 0 });
-  driftPhases.push({
-    x: Math.random() * 2 * Math.PI,
-    y: Math.random() * 2 * Math.PI,
-  });
-}
-
-let tiltData = { x: 0, y: 0 };
-
-const sizeSlider = document.getElementById('sizeSlider');
-const blurSlider = document.getElementById('blurSlider');
-const randomizeBtn = document.getElementById('randomizeBtn');
-const modeBtn = document.getElementById('modeBtn');
-let mode = 'swarm';
-
-sizeSlider.addEventListener('input', () => {
-  const scaleValue = sizeSlider.value;
-  shapes.forEach(shape => {
-    shape.style.transform = `scale(${scaleValue})`;
-  });
-});
-
-blurSlider.addEventListener('input', () => {
-  const blurValue = blurSlider.value;
-  shapes.forEach(shape => {
-    shape.style.filter = `blur(${blurValue}px)`;
-  });
-});
-
-randomizeBtn.addEventListener('click', () => {
-  for(let i = 0; i < shapeCount; i++) {
-    const shape = shapes[i];
-    const size = shape.offsetWidth;
-    const newLeft = randomRange(0, window.innerWidth - size);
-    const newTop = randomRange(0, window.innerHeight - size);
-    basePositions[i] = { x: newLeft, y: newTop };
-    shape.style.left = `${newLeft}px`;
-    shape.style.top = `${newTop}px`;
-
-    // Reset drift offsets and phases on randomize
-    driftOffsets[i] = { x: 0, y: 0 };
-    driftPhases[i] = {
-      x: Math.random() * 2 * Math.PI,
-      y: Math.random() * 2 * Math.PI,
-    };
-  }
-});
-
-modeBtn.addEventListener('click', () => {
-  if (mode === 'swarm') {
-    // Switch to single ball mode
-    mode = 'single';
-    // Remove only shape elements from swarm
-    for (let i = shapes.length - 1; i >= 0; i--) {
-      if (swarm.contains(shapes[i])) {
-        swarm.removeChild(shapes[i]);
+    function regenerateSpots() {
+      spots = [];
+      const newNum = numSpotsSlider.value();
+      const maxSize = sizeSlider.value();
+      for (let i = 0; i < newNum; i++) {
+        spots.push({
+          x: random(width),
+          y: random(height),
+          baseX: random(width),
+          baseY: random(height),
+          size: random(30, maxSize),
+          alpha: random(100, 200),
+          cluster: floor(random(5)),
+          noiseSeed: random(1000),
+          speed: random(0.0009, 0.01),
+          dimState: { dimming: false, dimTimer: 0, dimTarget: 1 },
+          gatherDelay: random(0, 300) // delay in milliseconds before starting gather
+        });
       }
     }
-    // Remove shapes from array
-    shapes.length = 0;
-    basePositions.length = 0;
-    motionCoeffs.length = 0;
-    driftOffsets.length = 0;
-    driftPhases.length = 0;
 
-    const ball = document.createElement('div');
-    ball.className = 'shape';
-    ball.id = 'singleBall';
-    ball.style.width = '100px';
-    ball.style.height = '100px';
-    ball.style.borderRadius = '50%';
-    ball.style.left = `${window.innerWidth / 2 - 50}px`;
-    ball.style.top = `${window.innerHeight / 2 - 50}px`;
-    swarm.appendChild(ball);
+    function draw() {
+      if (numSpots !== numSpotsSlider.value() || lastMaxSize !== sizeSlider.value()) {
+        numSpots = numSpotsSlider.value();
+        lastMaxSize = sizeSlider.value();
+        regenerateSpots();
+      }
 
-    // Add text prompts
-    const leftPrompt = document.createElement('div');
-    leftPrompt.id = 'leftPrompt';
-    leftPrompt.innerHTML = 'Say hi to <br> Galaxy AI';
-    leftPrompt.style.position = 'absolute';
-    leftPrompt.style.top = '50%';
-    leftPrompt.style.left = '15%';
-    leftPrompt.style.transform = 'translateY(-50%)';
-    leftPrompt.style.textAlign = 'center';
-    leftPrompt.style.fontSize = '24px';
-    leftPrompt.style.fontFamily = 'sans-serif';
-    leftPrompt.style.fontWeight = 'bold';
+      clear(); // changed from background(0) to clear()
 
-    const rightPrompt = document.createElement('div');
-    rightPrompt.id = 'rightPrompt';
-    rightPrompt.innerHTML = 'Discover new <br> camera features';
-    rightPrompt.style.position = 'absolute';
-    rightPrompt.style.top = '50%';
-    rightPrompt.style.right = '15%';
-    rightPrompt.style.transform = 'translateY(-50%)';
-    rightPrompt.style.textAlign = 'center';
-    rightPrompt.style.fontSize = '24px';
-    rightPrompt.style.fontFamily = 'sans-serif';
-    rightPrompt.style.fontWeight = 'bold';
+      blendMode(ADD);
+      windOffset += 0.001;
 
-    swarm.appendChild(leftPrompt);
-    swarm.appendChild(rightPrompt);
+      if (gathering) {
+        let currentTime = millis();
+        for (let s of spots) {
+          // If we just started gathering again, reset new gather start times
+          if (!s.hasOwnProperty('gatherInitialized') || !s.gatherInitialized) {
+            s.gatherStartTime = currentTime + s.gatherDelay;
+            s.gatherInitialized = true;
+          }
+          if (currentTime < s.gatherStartTime) continue; // wait until its delay has passed
 
-    shapes.push(ball);
-    basePositions.push({ x: window.innerWidth / 2 - 50, y: window.innerHeight / 2 - 50 });
-    motionCoeffs.push({ x: 1, y: 1 });
-    driftOffsets.push({ x: 0, y: 0 });
-    driftPhases.push({ x: Math.random() * 2 * Math.PI, y: Math.random() * 2 * Math.PI });
+          let targetX = width / 2;
+          let targetY = height / 2;
+          let dx = targetX - s.baseX;
+          let dy = targetY - s.baseY;
 
-    shapeCount = 1;
-  } else {
-    // Switch back to swarm mode
-    mode = 'swarm';
+          // Add soft organic noise
+          let n = noise(s.noiseSeed + frameCount * 0.01);
+          let offsetX = map(n, 0, 1, -20, 20);
+          let offsetY = map(n, 0, 1, -20, 20);
 
-    const leftPrompt = document.getElementById('leftPrompt');
-    const rightPrompt = document.getElementById('rightPrompt');
-    if (leftPrompt) leftPrompt.remove();
-    if (rightPrompt) rightPrompt.remove();
+          // Move smoothly toward center based on gatherSpeed
+          s.baseX += dx * gatherSpeed + offsetX * 0.01;
+          s.baseY += dy * gatherSpeed + offsetY * 0.01;
+        }
+      }
 
-    // Remove only shape elements from swarm
-    for (let i = shapes.length - 1; i >= 0; i--) {
-      if (swarm.contains(shapes[i])) {
-        swarm.removeChild(shapes[i]);
+      if (!gathering) {
+        for (let s of spots) {
+          if (s.targetX && s.targetY) {
+            let dx = s.targetX - s.baseX;
+            let dy = s.targetY - s.baseY;
+            s.baseX += dx * gatherSpeed * 0.5;
+            s.baseY += dy * gatherSpeed * 0.5;
+
+            // Stop movement when near target
+            if (abs(dx) < 1 && abs(dy) < 1) {
+              s.targetX = null;
+              s.targetY = null;
+            }
+          }
+        }
+      }
+
+      for (let s of spots) {
+        // Occasionally trigger dimming using new time-based interpolation
+        if (!s.dimState.dimming && random() < 0.0005) {
+          s.dimState.dimming = true;
+          s.dimState.timer = 0;
+          s.dimState.durationOut = random(0.4, 0.6);
+          s.dimState.durationHold = random(0.5, 1.5);
+          s.dimState.durationIn = random(0.2, 0.4);
+          s.dimState.startAlpha = s.alpha;
+          s.dimState.targetAlpha = s.alpha * random(0.1, 0.4); // how dark it gets
+        }
+
+        if (s.dimState.dimming) {
+          s.dimState.timer += deltaTime / 1000.0; // convert ms to seconds
+          let t = s.dimState.timer;
+          let fadeOutEnd = s.dimState.durationOut;
+          let holdEnd = fadeOutEnd + s.dimState.durationHold;
+          let fadeInEnd = holdEnd + s.dimState.durationIn;
+
+          if (t < fadeOutEnd) {
+            // Fade out phase
+            let progress = t / fadeOutEnd;
+            s.alpha = lerp(s.dimState.startAlpha, s.dimState.targetAlpha, progress);
+          } else if (t < holdEnd) {
+            // Stay dimmed
+            s.alpha = s.dimState.targetAlpha;
+          } else if (t < fadeInEnd) {
+            // Fade back in
+            let progress = (t - holdEnd) / s.dimState.durationIn;
+            s.alpha = lerp(s.dimState.targetAlpha, s.dimState.startAlpha, progress);
+          } else {
+            // Done
+            s.dimState.dimming = false;
+            s.alpha = s.dimState.startAlpha;
+          }
+        }
+      }
+
+       let windStrength = map(noise(frameCount * 0.005), 0, 1, 0.2, 1.2);
+       let windAngle = noise(frameCount * 0.007) * TWO_PI;
+       let waveX = Math.cos(windAngle) * 20 * windStrength;
+       let waveY = Math.sin(windAngle) * 20 * windStrength;
+
+      // Smoothly ease in collisions when ungathering
+      let targetCollisionEase = gathering ? 0.0 : 1.0;
+      collisionEase = lerp(collisionEase, targetCollisionEase, 0.02);
+
+      // Soft collision logic to prevent overlapping
+      if (!gathering) {
+        for (let i = 0; i < spots.length; i++) {
+          for (let j = i + 1; j < spots.length; j++) {
+            let s1 = spots[i];
+            let s2 = spots[j];
+            let dx = s2.baseX - s1.baseX;
+            let dy = s2.baseY - s1.baseY;
+            let distSq = dx * dx + dy * dy;
+            let minDist = (s1.size + s2.size) * 0.6;
+            if (distSq < minDist * minDist) {
+              let dist = sqrt(distSq) || 0.001;
+              let overlap = (minDist - dist) * 0.6 * collisionEase; // eased collision strength
+              let nx = dx / dist;
+              let ny = dy / dist;
+              s1.baseX -= nx * overlap;
+              s1.baseY -= ny * overlap;
+              s2.baseX += nx * overlap;
+              s2.baseY += ny * overlap;
+            }
+          }
+        }
+      }
+
+      for (let s of spots) {
+        let radius = s.size * 0.5;
+        if (s.baseX < borderMargin + radius) s.baseX = borderMargin + radius;
+        if (s.baseX > width - borderMargin - radius) s.baseX = width - borderMargin - radius;
+        if (s.baseY < borderMargin + radius) s.baseY = borderMargin + radius;
+        if (s.baseY > height - borderMargin - radius) s.baseY = height - borderMargin - radius;
+      }
+
+      let t = frameCount * 0.045; // controls speed of wave travel
+
+      for (let s of spots) {
+        let nX = noise(s.noiseSeed + frameCount * s.speed, s.cluster * 0.5);
+        let nY = noise(s.noiseSeed + 100 + frameCount * s.speed, s.cluster * 0.5);
+
+        // Clustered organic motion
+        let breezeX = map(nX, 0, 1, -100, 100);
+        let breezeY = map(nY, 0, 1, -100, 100);
+
+        // Phone tilt influence
+        let tiltInfluence = 10;
+        let x = s.baseX + breezeX + tiltData.x * tiltInfluence;
+        let y = s.baseY + breezeY + tiltData.y * tiltInfluence;
+
+        let phase = ((s.baseX + s.baseY) / (width + height)) * TWO_PI;
+        let wave = sin(t - phase) * 1.0; // wave passes diagonally
+        let waveStrength = map(noise(t * 0.05), 0, 1, 0.5, 1.5);
+        let waveDisplacement = wave * 25 * waveStrength;
+        let waveAngle = radians(45); // diagonal from bottom-left to top-right
+        let waveX = cos(waveAngle) * waveDisplacement;
+        let waveY = -sin(waveAngle) * waveDisplacement;
+
+        x += waveX;
+        y += waveY;
+
+        // Draw soft organic patch
+        drawOrganicSpot(x, y, s.size, s.alpha, s.noiseSeed);
       }
     }
-    // Remove shapes from array
-    shapes.length = 0;
-    basePositions.length = 0;
-    motionCoeffs.length = 0;
-    driftOffsets.length = 0;
-    driftPhases.length = 0;
 
-    for (let i = 0; i < 15; i++) {
-      const shape = document.createElement('div');
-      shape.className = 'shape';
-      shape.id = `shape${i}`;
-      const size = randomRange(150, 400);
-      shape.style.width = `${size}px`;
-      shape.style.height = `${size}px`;
-      const left = randomRange(0, window.innerWidth - size);
-      const top = randomRange(0, window.innerHeight - size);
-      shape.style.left = `${left}px`;
-      shape.style.top = `${top}px`;
-      basePositions.push({ x: left, y: top });
-      shape.style.background = '#fff';
-      shape.style.borderRadius = `${randomRange(20, 80)}%`;
-      shape.style.opacity = randomRange(0.3, 1);
-      swarm.appendChild(shape);
-      shapes.push(shape);
-      motionCoeffs.push({
-        x: randomRange(0.5, 1.5),
-        y: randomRange(0.5, 1.5),
-      });
-      driftOffsets.push({ x: 0, y: 0 });
-      driftPhases.push({
-        x: Math.random() * 2 * Math.PI,
-        y: Math.random() * 2 * Math.PI,
-      });
+function triggerGather() {
+  gathering = true;
+  gatherStartTime = millis();
+}
+
+function drawOrganicSpot(x, y, r, alpha, seed) {
+  let ctx = drawingContext;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Apply global rotation (for all blobs)
+  let globalRotation = radians(10); // e.g. slight diagonal rotation
+  ctx.rotate(globalRotation);
+
+  // Apply directional stretch (optional)
+  let stretchAngle = radians(40); // direction of sunlight stretch
+  ctx.rotate(stretchAngle);
+  ctx.scale(1.3, 0.9); // stretch along the chosen direction
+  ctx.rotate(-stretchAngle);
+
+  // Gradient and blur
+  let distortionX = map(noise(seed + 0.5), 0, 1, 0.85, 1.15);
+  let distortionY = map(noise(seed + 500 + 0.5), 0, 1, 0.85, 1.15);
+  let shimmer = map(noise(seed + 1000 + frameCount * 0.01), 0, 1, 0.7, 1);
+  let gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 3.6);
+  gradient.addColorStop(0, `rgba(255,255,255,${(alpha / 255) * shimmer})`);
+  gradient.addColorStop(0.3, `rgba(255,255,255,${(alpha / 255) * 0.6 * shimmer})`);
+  gradient.addColorStop(0.7, `rgba(255,255,255,${(alpha / 255) * 0.2 * shimmer})`);
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.filter = 'blur(17px)';
+
+  // Organic blob shape
+  const points = 24;
+  ctx.beginPath();
+  for (let i = 0; i <= points; i++) {
+    let angle = (i / points) * TWO_PI;
+    let noiseVal = noise(seed + Math.cos(angle) * 0.8, seed + Math.sin(angle) * 0.8);
+    let radius = r * map(noiseVal, 0, 1, 0.5, 1.4);
+    let px = radius * distortionX * Math.cos(angle);
+    let py = radius * distortionY * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.filter = 'none';
+  ctx.restore();
+}
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
     }
-    shapeCount = 15;
-  }
-});
-
-peer.on('open', id => {
-  info.innerHTML = `<b>${id}</b>`;
-});
-
-peer.on('connection', conn => {
-  info.textContent = 'Connected!';
-conn.on('data', data => {
-  if (data.type === 'tilt') {
-    tiltData.x = data.x;
-    tiltData.y = data.y;
-  } else if (data.type === 'spike') {
-    triggerSpikeEffect();
-  } else if (data.type === 'changeMode') {
-    modeBtn.click();
-  }
-});
-  conn.on('close', () => {
-    info.textContent = 'Connection lost. Reload both pages.';
-  });
-});
-
-function triggerSpikeEffect() {
-  shapes.forEach(shape => {
-    const originalOpacity = parseFloat(shape.style.opacity) || 1;
-    // Start at current opacity → go to 1.0
-    shape.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
-    shape.style.transform = 'scale(5)';
-    shape.style.opacity = '1';
-
-    // Then return slowly over 5 seconds
-    setTimeout(() => {
-      shape.style.transition = 'transform 5s ease-in, opacity 5s ease-in';
-      shape.style.transform = 'scale(1)';
-      shape.style.opacity = originalOpacity;
-    }, 500);
-  });
-}
-
-// Animation loop for slow floating drift and tilt displacement
-let lastTimestamp = null;
-function animate(timestamp) {
-  if (!lastTimestamp) lastTimestamp = timestamp;
-  const delta = (timestamp - lastTimestamp) / 1000; // seconds
-  lastTimestamp = timestamp;
-
-  const driftAmplitude = 20; // max pixels drift amplitude
-  const driftSpeed = 0.5; // radians per second
-
-  for(let i = 0; i < shapes.length; i++) {
-    const shape = shapes[i];
-    const coeff = motionCoeffs[i];
-    const size = shape.offsetWidth;
-    const base = basePositions[i];
-
-    // Update drift phases
-    driftPhases[i].x += driftSpeed * delta;
-    driftPhases[i].y += driftSpeed * delta;
-
-    // Calculate drift offsets using sine wave for smooth floating
-    driftOffsets[i].x = Math.sin(driftPhases[i].x) * driftAmplitude;
-    driftOffsets[i].y = Math.sin(driftPhases[i].y) * driftAmplitude;
-
-    // Scale input tilt by coefficients and a fixed factor for motion range
-    const scaleFactor = 5; // increased for ball to reach text prompts
-
-    // Add small random drift for organic movement (same as original, but included here for tilt movement)
-    const driftX = randomRange(-0.5, 0.5);
-    const driftY = randomRange(-0.5, 0.5);
-
-    let left = base.x + tiltData.x * coeff.x * scaleFactor + driftOffsets[i].x + driftX;
-    let top = base.y + tiltData.y * coeff.y * scaleFactor + driftOffsets[i].y + driftY;
-
-    // Clamp positions within window bounds
-    left = Math.min(window.innerWidth - size, Math.max(0, left));
-    top = Math.min(window.innerHeight - size, Math.max(0, top));
-
-    shape.style.left = `${left}px`;
-    shape.style.top = `${top}px`;
-  }
-
-  requestAnimationFrame(animate);
-}
-requestAnimationFrame(animate);
-</script>
+  </script>
 </body>
 </html>
