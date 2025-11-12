@@ -57,14 +57,21 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script>
     let peer = new Peer();
-    let tiltData = { x: 0, y: 0 };
     let borderMargin = 90; // adjustable border width to keep blobs away from edges
 
     peer.on('connection', conn => {
       conn.on('data', data => {
-        if (data.type === 'tilt') {
-          tiltData.x = data.x;
-          tiltData.y = data.y;
+        if (data.type === 'toggleGather') {
+          if (data.state === 'gather' && !gathering) {
+            gathering = true;
+          } else if (data.state === 'ungather' && gathering) {
+            gathering = false;
+            for (let s of spots) {
+              s.targetX = random(borderMargin, width - borderMargin);
+              s.targetY = random(borderMargin, height - borderMargin);
+              s.gatherInitialized = false; // reset gather state for next time
+            }
+          }
         }
       });
     });
@@ -298,10 +305,9 @@
         let breezeX = map(nX, 0, 1, -100, 100);
         let breezeY = map(nY, 0, 1, -100, 100);
 
-        // Phone tilt influence
-        let tiltInfluence = 10;
-        let x = s.baseX + breezeX + tiltData.x * tiltInfluence;
-        let y = s.baseY + breezeY + tiltData.y * tiltInfluence;
+        // No tilt influence
+        let x = s.baseX + breezeX;
+        let y = s.baseY + breezeY;
 
         let phase = ((s.baseX + s.baseY) / (width + height)) * TWO_PI;
         let wave = sin(t - phase) * 1.0; // wave passes diagonally

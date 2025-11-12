@@ -24,6 +24,7 @@
 let peer = new Peer();
 let conn;
 let connected = false;
+let currentMode = 'ungather'; // track current viewer mode
 
 const status = document.getElementById('status');
 const connectBtn = document.getElementById('connectBtn');
@@ -42,28 +43,30 @@ connectBtn.onclick = () => {
     connected = true;
     status.textContent = 'Connected!';
     modeBtn.disabled = false;
-    enableSensors();
+    enableTiltControl();
   });
   conn.on('error', err => {
     status.textContent = 'Connection failed: ' + err;
   });
 };
 
+// Manual override button
 modeBtn.onclick = () => {
   if (connected && conn?.open) {
-    conn.send({ type: 'changeMode' });
-    status.textContent = 'Mode change sent';
+    const newMode = currentMode === 'gather' ? 'ungather' : 'gather';
+    conn.send({ type: 'toggleGather', state: newMode });
+    currentMode = newMode;
+    status.textContent = 'Mode manually toggled to ' + newMode;
   }
 };
 
-function enableSensors() {
-  // iOS motion permission
+function enableTiltControl() {
+  // Request iOS permission if necessary
   if (typeof DeviceMotionEvent.requestPermission === 'function') {
     DeviceMotionEvent.requestPermission()
       .then(response => {
         if (response === 'granted') {
           window.addEventListener('deviceorientation', handleTilt);
-          window.addEventListener('devicemotion', handleMotion);
         } else {
           alert('Motion permission denied.');
         }
@@ -71,36 +74,20 @@ function enableSensors() {
       .catch(console.error);
   } else {
     window.addEventListener('deviceorientation', handleTilt);
-    window.addEventListener('devicemotion', handleMotion);
   }
 }
 
 function handleTilt(e) {
   if (!connected || !conn?.open) return;
-  const gamma = e.gamma || 0;
-  const beta = e.beta || 0;
-  const x = Math.max(-30, Math.min(30, gamma)) * 5;
-  const y = Math.max(-30, Math.min(30, beta)) * 5;
-  conn.send({ type: 'tilt', x, y });
-}
 
-// Detect spikes in acceleration
-let lastSpikeTime = 0;
-let smoothMag = 0;
+  const beta = e.beta || 0; // front-back tilt, range ~[-180,180]
+  const isPickedUp = Math.abs(beta) > 30; // threshold angle
 
-function handleMotion(e) {
-  if (!connected || !conn?.open) return;
-  const acc = e.accelerationIncludingGravity;
-  if (!acc) return;
-
-  const mag = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
-  smoothMag = 0.8 * smoothMag + 0.2 * mag; // low-pass filter to smooth noise
-  const now = Date.now();
-
-  // Trigger only on strong motion
-  if (smoothMag > 18 && now - lastSpikeTime > 1500) {
-    lastSpikeTime = now;
-    conn.send({ type: 'spike' });
+  const desiredMode = isPickedUp ? 'gather' : 'ungather';
+  if (desiredMode !== currentMode) {
+    currentMode = desiredMode;
+    conn.send({ type: 'toggleGather', state: desiredMode });
+    status.textContent = `Tilt detected: switched to ${desiredMode}`;
   }
 }
 </script>
