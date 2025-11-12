@@ -95,6 +95,9 @@
 
     let collisionEase = 1.0; // starts at full strength
 
+    let canvasScale = 1.0;
+    let scaleSlider;
+
     function setup() {
       createCanvas(windowWidth, windowHeight);
       noStroke();
@@ -110,6 +113,9 @@
 
       createP('Size').parent(controlsDiv);
       sizeSlider = createSlider(30, 200, 90, 1).parent(controlsDiv);
+
+      createP('Scale').parent(controlsDiv);
+      scaleSlider = createSlider(0.1, 2.0, 1.0, 0.01).parent(controlsDiv);
 
       let hideUIButton = createButton('Hide UI').parent(uiDiv);
       hideUIButton.mousePressed(() => {
@@ -169,6 +175,15 @@
       }
 
       clear(); // changed from background(0) to clear()
+
+      canvasScale = scaleSlider ? scaleSlider.value() : 1.0;
+
+      push();
+      scale(canvasScale);
+      translate(
+        (width / 2 / canvasScale) - (width / 2),
+        (height / 2 / canvasScale) - (height / 2)
+      );
 
       blendMode(ADD);
       windOffset += 0.001;
@@ -323,6 +338,8 @@
         // Draw soft organic patch
         drawOrganicSpot(x, y, s.size, s.alpha, s.noiseSeed);
       }
+
+      pop();
     }
 
 function triggerGather() {
@@ -355,7 +372,8 @@ function drawOrganicSpot(x, y, r, alpha, seed) {
   gradient.addColorStop(0.7, `rgba(255,255,255,${(alpha / 255) * 0.2 * shimmer})`);
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gradient;
-  ctx.filter = 'blur(17px)';
+  let blurAmount = 17 * canvasScale; // blur increases when zooming in, decreases when zooming out
+  ctx.filter = `blur(${blurAmount}px)`;
 
   // Organic blob shape
   const points = 24;
