@@ -91,10 +91,17 @@ function handleMotion(e) {
   if (!linearAcc || !gravityAcc) return;
 
   const total = Math.sqrt(linearAcc.x ** 2 + linearAcc.y ** 2 + linearAcc.z ** 2);
-  document.getElementById('tiltDisplay').textContent = `Motion: ${total.toFixed(2)} m/s²`;
+
+  // Smooth motion readings with a simple moving average to avoid jitter
+  if (!handleMotion.recentTotals) handleMotion.recentTotals = [];
+  handleMotion.recentTotals.push(total);
+  if (handleMotion.recentTotals.length > 5) handleMotion.recentTotals.shift();
+  const avgMotion = handleMotion.recentTotals.reduce((a, b) => a + b, 0) / handleMotion.recentTotals.length;
+
+  document.getElementById('tiltDisplay').textContent = `Motion: ${avgMotion.toFixed(2)} m/s²`;
 
   const threshold = 0.6;
-  const isMoving = total > threshold;
+  const isMoving = avgMotion > threshold;
 
   const angle = Math.abs(Math.atan2(gravityAcc.y, Math.sqrt(gravityAcc.x ** 2 + gravityAcc.z ** 2)) * (180 / Math.PI));
   document.getElementById('angleDisplay').textContent = `Angle: ${angle.toFixed(2)}°`;
@@ -109,16 +116,18 @@ function handleMotion(e) {
       conn.send({ type: 'toggleGather', state: 'gather' });
       status.textContent = 'Motion detected: switched to gather';
     }
-  } else if (angle < 1.75) {
-    // both still and flat
-    if (stillTimer) clearTimeout(stillTimer);
-    stillTimer = setTimeout(() => {
-      if (currentMode !== 'ungather') {
-        currentMode = 'ungather';
-        conn.send({ type: 'toggleGather', state: 'ungather' });
-        status.textContent = `Phone perfectly flat (angle ${angle.toFixed(2)}°): switched to ungather`;
-      }
-    }, 300);
+  } else {
+    // Check both stillness and flatness
+    if (angle < 1.75) {
+      if (stillTimer) clearTimeout(stillTimer);
+      stillTimer = setTimeout(() => {
+        if (currentMode !== 'ungather') {
+          currentMode = 'ungather';
+          conn.send({ type: 'toggleGather', state: 'ungather' });
+          status.textContent = `Phone perfectly flat (angle ${angle.toFixed(2)}°): switched to ungather`;
+        }
+      }, 500);
+    }
   }
 }
 
