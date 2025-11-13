@@ -93,7 +93,7 @@ function handleMotion(e) {
   const total = Math.sqrt(linearAcc.x ** 2 + linearAcc.y ** 2 + linearAcc.z ** 2);
 
   // Use a smaller, realistic threshold (typical still noise ~0.05–0.3 m/s²)
-  const threshold = 0.4; // movement threshold (m/s²)
+  const threshold = 0.6; // movement threshold (m/s²)
 
   document.getElementById('tiltDisplay').textContent = `Motion: ${total.toFixed(2)} m/s²`;
 
