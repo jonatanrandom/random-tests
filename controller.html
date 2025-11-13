@@ -90,7 +90,7 @@ function handleMotion(e) {
 
   // Compute total linear acceleration magnitude (without gravity)
   const total = Math.sqrt(linearAcc.x * linearAcc.x + linearAcc.y * linearAcc.y + linearAcc.z * linearAcc.z);
-  const threshold = 1.0; // sensitivity threshold (m/s²)
+  const threshold = 10.0; // sensitivity threshold (m/s²)
 
   document.getElementById('tiltDisplay').textContent = `Motion: ${total.toFixed(2)} m/s²`;
 
