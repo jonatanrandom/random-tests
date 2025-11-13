@@ -20,6 +20,7 @@
 <div id="status"></div>
 <div id="tiltDisplay">Motion: 0.00 m/s²</div>
 <div id="angleDisplay">Angle: 0.00°</div>
+<button id="hideUiBtn" style="position:fixed; bottom:10px; left:50%; transform:translateX(-50%); opacity:0.3; font-size:0.8em;">Hide UI</button>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
@@ -126,6 +127,39 @@ function handleMotion(e) {
     }
   }
 }
+
+// Hide UI button functionality
+const hideUiBtn = document.getElementById('hideUiBtn');
+hideUiBtn.onclick = () => {
+  // Avoid creating multiple overlays
+  if (document.getElementById('uiOverlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'uiOverlay';
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.backgroundColor = 'black';
+  overlay.style.zIndex = '9999';
+
+  const showBtn = document.createElement('button');
+  showBtn.textContent = 'Show UI';
+  showBtn.style.position = 'absolute';
+  showBtn.style.bottom = '10px';
+  showBtn.style.left = '50%';
+  showBtn.style.transform = 'translateX(-50%)';
+  showBtn.style.opacity = '0.3';
+  showBtn.style.fontSize = '0.8em';
+  showBtn.onclick = () => {
+    // remove overlay to reveal UI again
+    overlay.remove();
+  };
+
+  overlay.appendChild(showBtn);
+  document.body.appendChild(overlay);
+};
 </script>
 </body>
 </html>
