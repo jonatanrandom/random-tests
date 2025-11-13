@@ -13,8 +13,9 @@
     canvas {
       display: block;
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       z-index: 0;
     }
     .ui {
@@ -91,9 +92,11 @@
     let lastMaxSize = 90;
 
     let gathering = false;
-    let gatherSpeed = 0.05; // how fast the spots move toward center
+    let gatherSpeed = 0.4; // how fast the spots move toward center
 
-    let collisionEase = 1.0; // starts at full strength
+
+let collisionEase = 1.0; // starts at full strength
+let _waveSpeedFactor = 1.0; // stable, explicitly-declared smoothing state (avoid implicit globals)
 
     let canvasScale = 1.0;
     let scaleSlider;
@@ -162,7 +165,7 @@
           noiseSeed: random(1000),
           speed: random(0.0009, 0.01),
           dimState: { dimming: false, dimTimer: 0, dimTarget: 1 },
-          gatherDelay: random(0, 300) // delay in milliseconds before starting gather
+          gatherDelay: random(0, 100) // delay in milliseconds before starting gather
         });
       }
     }
@@ -208,9 +211,14 @@
           let offsetX = map(n, 0, 1, -20, 20);
           let offsetY = map(n, 0, 1, -20, 20);
 
-          // Move smoothly toward center based on gatherSpeed
-          s.baseX += dx * gatherSpeed + offsetX * 0.01;
-          s.baseY += dy * gatherSpeed + offsetY * 0.01;
+          // Ease-in movement: start slow, accelerate toward the end
+          let dist = sqrt(dx * dx + dy * dy);
+          let maxDist = sqrt((width / 2) ** 2 + (height / 2) ** 2);
+          let progress = constrain(1 - dist / maxDist, 0, 1);
+          let easedSpeed = gatherSpeed * (progress * progress); // quadratic ease-in
+
+          s.baseX += dx * easedSpeed + offsetX * 0.01;
+          s.baseY += dy * easedSpeed + offsetY * 0.01;
         }
       }
 
@@ -310,7 +318,14 @@
         if (s.baseY > height - borderMargin - radius) s.baseY = height - borderMargin - radius;
       }
 
-      let t = frameCount * 0.045; // controls speed of wave travel
+      // Smoothly slow or resume wave movement when toggling gather mode (stable, time-based)
+      let targetWaveSpeed = gathering ? 0.0 : 1.0;
+      _waveSpeedFactor = constrain(lerp(_waveSpeedFactor, targetWaveSpeed, 0.05), 0, 1);
+
+      // Keep stable wave time independent of frameCount
+      if (typeof _waveTime === 'undefined') _waveTime = 0;
+      _waveTime += 0.045 * _waveSpeedFactor; // advance smoothly
+      let t = _waveTime;
 
       for (let s of spots) {
         let nX = noise(s.noiseSeed + frameCount * s.speed, s.cluster * 0.5);

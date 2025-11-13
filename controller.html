@@ -18,7 +18,7 @@
 <br>
 <button id="modeBtn">Change Mode</button>
 <div id="status"></div>
-<div id="tiltDisplay">Tilt: 0°</div>
+<div id="tiltDisplay">Motion: 0.00 m/s²</div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
@@ -67,29 +67,61 @@ function enableTiltControl() {
     DeviceMotionEvent.requestPermission()
       .then(response => {
         if (response === 'granted') {
-          window.addEventListener('deviceorientation', handleTilt);
+          window.addEventListener('devicemotion', handleMotion);
         } else {
           alert('Motion permission denied.');
         }
       })
       .catch(console.error);
   } else {
-    window.addEventListener('deviceorientation', handleTilt);
+    window.addEventListener('devicemotion', handleMotion);
   }
 }
 
-function handleTilt(e) {
+let stillTimer = null;
+let moving = false;
+
+function handleMotion(e) {
   if (!connected || !conn?.open) return;
 
-  const beta = e.beta || 0; // front-back tilt, range ~[-180,180]
-  document.getElementById('tiltDisplay').textContent = `Tilt: ${beta.toFixed(1)}°`;
-  const isPickedUp = Math.abs(beta) > 5; // threshold angle
+  const acc = e.accelerationIncludingGravity || e.acceleration;
+  if (!acc) return;
 
-  const desiredMode = isPickedUp ? 'gather' : 'ungather';
-  if (desiredMode !== currentMode) {
-    currentMode = desiredMode;
-    conn.send({ type: 'toggleGather', state: desiredMode });
-    status.textContent = `Tilt detected: switched to ${desiredMode}`;
+  // Compute total acceleration magnitude
+  const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+  const threshold = 1; // sensitivity threshold (m/s²)
+
+  document.getElementById('tiltDisplay').textContent = `Motion: ${total.toFixed(2)} m/s²`;
+
+  const isMoving = total > threshold;
+
+  if (isMoving) {
+    moving = true;
+    if (stillTimer) {
+      clearTimeout(stillTimer);
+      stillTimer = null;
+    }
+    if (currentMode !== 'gather') {
+      currentMode = 'gather';
+      conn.send({ type: 'toggleGather', state: 'gather' });
+      status.textContent = 'Motion detected: switched to gather';
+    }
+  } else {
+    if (!stillTimer) {
+      // Wait for a short period of stillness before switching back
+      stillTimer = setTimeout(() => {
+        moving = false;
+
+        // Estimate tilt angle: 0° = lying flat on its back
+        const angle = Math.abs(Math.atan2(acc.x, Math.sqrt(acc.y * acc.y + acc.z * acc.z)) * (180 / Math.PI));
+
+        if (angle < 5 && currentMode !== 'ungather') {
+          currentMode = 'ungather';
+          conn.send({ type: 'toggleGather', state: 'ungather' });
+          status.textContent = `Phone is still and flat (angle ${angle.toFixed(1)}°): switched to ungather`;
+        }
+      }, 300); // 0.3s stillness before switching back
+    }
   }
 }
 </script>
