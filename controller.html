@@ -89,8 +89,10 @@ function handleMotion(e) {
   if (!linearAcc || !gravityAcc) return;
 
   // Compute total linear acceleration magnitude (without gravity)
-  const total = Math.sqrt(linearAcc.x * linearAcc.x + linearAcc.y * linearAcc.y + linearAcc.z * linearAcc.z);
-  const threshold = 10.0; // sensitivity threshold (m/s²)
+  const total = Math.sqrt(linearAcc.x ** 2 + linearAcc.y ** 2 + linearAcc.z ** 2);
+
+  // Use a smaller, realistic threshold (typical still noise ~0.05–0.3 m/s²)
+  const threshold = 0.8; // movement threshold (m/s²)
 
   document.getElementById('tiltDisplay').textContent = `Motion: ${total.toFixed(2)} m/s²`;
 
