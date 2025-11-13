@@ -110,20 +110,16 @@ function handleMotion(e) {
       status.textContent = 'Motion detected: switched to gather';
     }
   } else {
-    if (!stillTimer) {
-      // Wait for a short period of stillness before switching back
-      stillTimer = setTimeout(() => {
-        moving = false;
+    // Instantly switch to ungather if still and flat
+    moving = false;
 
-        // Estimate tilt angle: 0° = lying flat on its back
-        const angle = Math.abs(Math.atan2(gravityAcc.x, Math.sqrt(gravityAcc.y * gravityAcc.y + gravityAcc.z * gravityAcc.z)) * (180 / Math.PI));
+    // Estimate tilt angle: 0° = lying flat on its back
+    const angle = Math.abs(Math.atan2(gravityAcc.x, Math.sqrt(gravityAcc.y * gravityAcc.y + gravityAcc.z * gravityAcc.z)) * (180 / Math.PI));
 
-        if (angle < 5 && currentMode !== 'ungather') {
-          currentMode = 'ungather';
-          conn.send({ type: 'toggleGather', state: 'ungather' });
-          status.textContent = `Phone is still and flat (angle ${angle.toFixed(1)}°): switched to ungather`;
-        }
-      }, 300); // 0.3s stillness before switching back
+    if (angle < 5 && currentMode !== 'ungather') {
+      currentMode = 'ungather';
+      conn.send({ type: 'toggleGather', state: 'ungather' });
+      status.textContent = `Phone is still and flat (angle ${angle.toFixed(1)}°): switched to ungather`;
     }
   }
 }
