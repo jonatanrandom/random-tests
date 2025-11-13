@@ -143,7 +143,7 @@ function handleMotion(e) {
           status.textContent = 'Motion detected: switched to gather';
         }
         gatherTimer = null;
-      }, 300);
+      }, 100);
     }
   } else {
     // device currently still — estimate tilt angle
@@ -170,7 +170,7 @@ function handleMotion(e) {
           status.textContent = `Phone perfectly flat (angle ${angleAtSchedule.toFixed(2)}°): switched to ungather`;
         }
         ungatherTimer = null;
-      }, 300);
+      }, 100);
     }
   }
 }
