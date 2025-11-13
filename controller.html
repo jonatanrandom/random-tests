@@ -101,18 +101,20 @@ function enableTiltControl() {
   }
 }
 
-let stillTimer = null;
+let gatherTimer = null;
+let ungatherTimer = null;
 let moving = false;
 
 function handleMotion(e) {
-  if (!connected || !conn?.open) return;
+  // require an active open connection
+  if (!connected || !conn || !conn.open) return;
 
   const linearAcc = e.acceleration;
   const gravityAcc = e.accelerationIncludingGravity;
   if (!linearAcc || !gravityAcc) return;
 
   // Compute total linear acceleration magnitude (without gravity)
-  const total = Math.sqrt(linearAcc.x ** 2 + linearAcc.y ** 2 + linearAcc.z ** 2);
+  const total = Math.sqrt((linearAcc.x || 0) ** 2 + (linearAcc.y || 0) ** 2 + (linearAcc.z || 0) ** 2);
 
   // Use a smaller, realistic threshold (typical still noise ~0.05–0.3 m/s²)
   const threshold = 0.6; // movement threshold (m/s²)
@@ -122,43 +124,52 @@ function handleMotion(e) {
   const isMoving = total > threshold;
 
   if (isMoving) {
+    // device currently moving
     moving = true;
-    if (stillTimer) {
-      clearTimeout(stillTimer);
-      stillTimer = null;
+
+    // cancel any pending ungather timer
+    if (ungatherTimer) {
+      clearTimeout(ungatherTimer);
+      ungatherTimer = null;
     }
-    if (currentMode !== 'gather') {
-      // Start 300ms timer to switch to gather if motion persists
-      stillTimer = setTimeout(() => {
+
+    // start (or keep) a gather timer — only one at a time
+    if (currentMode !== 'gather' && !gatherTimer) {
+      gatherTimer = setTimeout(() => {
+        // confirm movement still true before switching
         if (moving && currentMode !== 'gather') {
           currentMode = 'gather';
-          conn.send({ type: 'toggleGather', state: 'gather' });
+          try { conn.send({ type: 'toggleGather', state: 'gather' }); } catch (err) { /* ignore send errors */ }
           status.textContent = 'Motion detected: switched to gather';
         }
-        stillTimer = null;
+        gatherTimer = null;
       }, 300);
     }
   } else {
-    // Estimate tilt angle: 0° = lying flat on its back
+    // device currently still — estimate tilt angle
     const angle = Math.abs(Math.atan2(gravityAcc.y, Math.sqrt(gravityAcc.x * gravityAcc.x + gravityAcc.z * gravityAcc.z)) * (180 / Math.PI));
     document.getElementById('angleDisplay').textContent = `Angle: ${angle.toFixed(2)}°`;
 
     moving = false;
 
-    if (stillTimer) {
-      clearTimeout(stillTimer);
-      stillTimer = null;
+    // cancel any pending gather timer
+    if (gatherTimer) {
+      clearTimeout(gatherTimer);
+      gatherTimer = null;
     }
-    // Require nearly perfectly flat orientation (angle < 1.75°)
-    if (angle < 1.75 && currentMode !== 'ungather') {
-      // Start 300ms timer to switch to ungather if stillness persists
-      stillTimer = setTimeout(() => {
+
+    // only schedule ungather if nearly perfectly flat
+    if (angle < 1.75 && currentMode !== 'ungather' && !ungatherTimer) {
+      // capture angle for the callback so the message shows the measured value at schedule time
+      const angleAtSchedule = angle;
+      ungatherTimer = setTimeout(() => {
+        // confirm stillness persists
         if (!moving && currentMode !== 'ungather') {
           currentMode = 'ungather';
-          conn.send({ type: 'toggleGather', state: 'ungather' });
-          status.textContent = `Phone perfectly flat (angle ${angle.toFixed(2)}°): switched to ungather`;
+          try { conn.send({ type: 'toggleGather', state: 'ungather' }); } catch (err) { /* ignore send errors */ }
+          status.textContent = `Phone perfectly flat (angle ${angleAtSchedule.toFixed(2)}°): switched to ungather`;
         }
-        stillTimer = null;
+        ungatherTimer = null;
       }, 300);
     }
   }
