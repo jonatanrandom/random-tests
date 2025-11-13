@@ -19,6 +19,7 @@
 <button id="modeBtn">Change Mode</button>
 <div id="status"></div>
 <div id="tiltDisplay">Motion: 0.00 m/s²</div>
+<div id="angleDisplay">Angle: 0.00°</div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
@@ -92,7 +93,7 @@ function handleMotion(e) {
   const total = Math.sqrt(linearAcc.x ** 2 + linearAcc.y ** 2 + linearAcc.z ** 2);
 
   // Use a smaller, realistic threshold (typical still noise ~0.05–0.3 m/s²)
-  const threshold = 0.8; // movement threshold (m/s²)
+  const threshold = 0.2; // movement threshold (m/s²)
 
   document.getElementById('tiltDisplay').textContent = `Motion: ${total.toFixed(2)} m/s²`;
 
@@ -115,11 +116,13 @@ function handleMotion(e) {
 
     // Estimate tilt angle: 0° = lying flat on its back
     const angle = Math.abs(Math.atan2(gravityAcc.x, Math.sqrt(gravityAcc.y * gravityAcc.y + gravityAcc.z * gravityAcc.z)) * (180 / Math.PI));
+    document.getElementById('angleDisplay').textContent = `Angle: ${angle.toFixed(2)}°`;
 
-    if (angle < 5 && currentMode !== 'ungather') {
+    // Require nearly perfectly flat orientation (angle < 1.5°)
+    if (angle < 1.5 && currentMode !== 'ungather') {
       currentMode = 'ungather';
       conn.send({ type: 'toggleGather', state: 'ungather' });
-      status.textContent = `Phone is still and flat (angle ${angle.toFixed(1)}°): switched to ungather`;
+      status.textContent = `Phone perfectly flat (angle ${angle.toFixed(2)}°): switched to ungather`;
     }
   }
 }
