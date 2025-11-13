@@ -118,28 +118,31 @@ function handleMotion(e) {
       status.textContent = 'Motion + tilt detected: switched to gather';
     }
   } else {
-    // Instantly switch to ungather if still and flat
+    // Handle stillness and potential switch to ungather
     moving = false;
 
     // Estimate tilt angle: 0° = lying flat on its back
     const angle = Math.abs(Math.atan2(gravityAcc.y, Math.sqrt(gravityAcc.x * gravityAcc.x + gravityAcc.z * gravityAcc.z)) * (180 / Math.PI));
     document.getElementById('angleDisplay').textContent = `Angle: ${angle.toFixed(2)}°`;
 
-    // Require nearly perfectly flat orientation (angle < 1.75°) with a 0.3s delay before switching
-    if (angle < 1.75 && !isMoving && currentMode !== 'ungather') {
+    // Require nearly flat orientation and stillness for 0.3s before switching to ungather
+    if (angle < 1.75 && currentMode !== 'ungather') {
       if (stillTimer) clearTimeout(stillTimer);
       stillTimer = setTimeout(() => {
-        // Double-check that the phone is still and flat before switching
-        if (!moving && angle < 1.75) {
+        // Recalculate angle at the end of delay to confirm it's still flat
+        const recheckAngle = Math.abs(Math.atan2(gravityAcc.y, Math.sqrt(gravityAcc.x * gravityAcc.x + gravityAcc.z * gravityAcc.z)) * (180 / Math.PI));
+        if (!moving && recheckAngle < 1.75) {
           currentMode = 'ungather';
           conn.send({ type: 'toggleGather', state: 'ungather' });
-          status.textContent = `Phone perfectly flat (angle ${angle.toFixed(2)}°): switched to ungather`;
+          status.textContent = `Phone flat and still (angle ${recheckAngle.toFixed(2)}°): switched to ungather`;
         }
-      }, 300); // 0.3s delay to smooth transition
-    } else if (angle >= 1.75 && stillTimer) {
-      // Cancel pending ungather if phone is tilted again
-      clearTimeout(stillTimer);
-      stillTimer = null;
+      }, 300); // 0.3s of stillness before switching back
+    } else {
+      // Cancel pending ungather if tilted or moved again
+      if (stillTimer) {
+        clearTimeout(stillTimer);
+        stillTimer = null;
+      }
     }
   }
 }
